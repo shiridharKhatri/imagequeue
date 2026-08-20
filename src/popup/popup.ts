@@ -1683,7 +1683,7 @@ const LOCATION_PRESETS: LocationPreset[] = [
 
 const AUTHOR_PRESETS = [
   'Marcus Chen',
-  'Emma Johnson',
+  'Emma Lycoris',
   'Sarah Jenkins',
   'David Miller',
   'Hiroshi Tanaka',
