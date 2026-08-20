@@ -1,6 +1,7 @@
 import JSZip from 'jszip';
 import type { ProcessingOptions, ImageFormat } from '../shared/types';
 import { imageStore } from '../storage/image-store';
+import { removeBackground, cropTransparent } from '../processing/image-processor';
 
 /**
  * Offscreen document script.
@@ -92,12 +93,31 @@ async function handleProcessImages(
       dateTimeOriginal: customMeta?.dateTimeOriginal ?? options.metadata?.dateTimeOriginal ?? undefined,
     };
 
-    const processed = await processImage(stored.blob, {
-      ...options,
+    // Check card-specific BG remove and Crop
+    const isBgRemove = options.bgRemove?.[item.id] || false;
+    const isCrop = options.crop?.[item.id] || false;
+
+    // For feature image, override resolution to 300x300
+    const isFeatureImage = item.prompt.toLowerCase().includes('background removed') || item.prompt.toLowerCase().includes('300x300');
+    const imageOptions = isFeatureImage ? { ...options, resolution: '300x300' } : options;
+
+    let processed = await processImage(stored.blob, {
+      ...imageOptions,
       metadata: itemMetadata,
     });
 
-    const ext = formatToExtension(options.format);
+    if (isBgRemove) {
+      processed = await removeBackground(processed);
+    }
+    if (isCrop) {
+      processed = await cropTransparent(processed);
+    }
+
+    let fmt = (isBgRemove || isCrop) ? 'png' : options.format;
+    if (fmt === 'def') {
+      fmt = getExtensionFromMime(stored.blob.type) as ImageFormat;
+    }
+    const ext = formatToExtension(fmt);
     
     // Choose custom name if specified, otherwise index-based
     let filename = '';
@@ -154,12 +174,27 @@ async function handleBuildZip(
         dateTimeOriginal: customMeta?.dateTimeOriginal ?? options.metadata?.dateTimeOriginal ?? undefined,
       };
 
+      // Check card-specific BG remove and Crop
+      const isBgRemove = options.bgRemove?.[item.id] || false;
+      const isCrop = options.crop?.[item.id] || false;
+
+      // For feature image, override resolution to 300x300
+      const isFeatureImage = item.prompt.toLowerCase().includes('background removed') || item.prompt.toLowerCase().includes('300x300');
+      const imageOptions = isFeatureImage ? { ...options, resolution: '300x300' } : options;
+
       blob = await processImage(stored.blob, {
-        ...options,
+        ...imageOptions,
         metadata: itemMetadata,
       });
+
+      if (isBgRemove) {
+        blob = await removeBackground(blob);
+      }
+      if (isCrop) {
+        blob = await cropTransparent(blob);
+      }
       
-      let fmt = options.format;
+      let fmt = (isBgRemove || isCrop) ? 'png' : options.format;
       if (fmt === 'def') {
         fmt = getExtensionFromMime(stored.blob.type) as ImageFormat;
       }
@@ -215,12 +250,27 @@ async function handleProcessSingleImage(
     dateTimeOriginal: customMeta?.dateTimeOriginal ?? options.metadata?.dateTimeOriginal ?? undefined,
   };
 
-  const processed = await processImage(stored.blob, {
-    ...options,
+  // Check card-specific BG remove and Crop
+  const isBgRemove = options.bgRemove?.[itemId] || false;
+  const isCrop = options.crop?.[itemId] || false;
+
+  // For feature image, override resolution to 300x300
+  const isFeatureImage = prompt.toLowerCase().includes('background removed') || prompt.toLowerCase().includes('300x300');
+  const imageOptions = isFeatureImage ? { ...options, resolution: '300x300' } : options;
+
+  let processed = await processImage(stored.blob, {
+    ...imageOptions,
     metadata: itemMetadata,
   });
 
-  let fmt = options.format;
+  if (isBgRemove) {
+    processed = await removeBackground(processed);
+  }
+  if (isCrop) {
+    processed = await cropTransparent(processed);
+  }
+
+  let fmt = (isBgRemove || isCrop) ? 'png' : options.format;
   if (fmt === 'def') {
     fmt = getExtensionFromMime(stored.blob.type) as ImageFormat;
   }

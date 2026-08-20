@@ -94,6 +94,10 @@ export interface ProcessingOptions {
   filenamePrefix: string;
   /** Optional custom filenames mapping item.id -> custom name (no extension) */
   customFilenames?: Record<string, string>;
+  /** Optional custom background removal mapping item.id -> boolean */
+  bgRemove?: Record<string, boolean>;
+  /** Optional custom crop mapping item.id -> boolean */
+  crop?: Record<string, boolean>;
   /** Optional custom EXIF metadata mapping item.id -> metadata */
   customMetadata?: Record<string, {
     title?: string;

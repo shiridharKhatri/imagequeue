@@ -583,6 +583,28 @@ function getProcessingOptions(): ProcessingOptions {
     }
   });
 
+  // Collect individual BG Remove and Crop states
+  const bgRemove: Record<string, boolean> = {};
+  const crop: Record<string, boolean> = {};
+
+  const bgChecks = batchImageList.querySelectorAll('.batch-bg-remove-check');
+  bgChecks.forEach((chk) => {
+    const htmlChk = chk as HTMLInputElement;
+    const id = htmlChk.dataset.id;
+    if (id) {
+      bgRemove[id] = htmlChk.checked;
+    }
+  });
+
+  const cropChecks = batchImageList.querySelectorAll('.batch-crop-check');
+  cropChecks.forEach((chk) => {
+    const htmlChk = chk as HTMLInputElement;
+    const id = htmlChk.dataset.id;
+    if (id) {
+      crop[id] = htmlChk.checked;
+    }
+  });
+
   // Collect individual custom metadata
   const customMetadata: Record<string, any> = {};
   if (exifToggle.checked) {
@@ -616,6 +638,8 @@ function getProcessingOptions(): ProcessingOptions {
     resolution: resolutionSelect.value || '0',
     filenamePrefix: filenamePrefixInput.value.trim() || 'image',
     customFilenames,
+    bgRemove,
+    crop,
     customMetadata,
     metadata: exifToggle.checked ? {
       make: exifMakeInput.value.trim(),
