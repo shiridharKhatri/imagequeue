@@ -144,6 +144,7 @@ async function handleBuildZip(
   req: BuildZipRequest
 ): Promise<{ blobUrl: string; filename: string }> {
   const { items, options } = req;
+  console.log('[offscreen] handleBuildZip options:', options);
   const zip = new JSZip();
 
   for (let i = 0; i < items.length; i++) {

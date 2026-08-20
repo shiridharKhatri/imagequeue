@@ -605,6 +605,8 @@ function getProcessingOptions(): ProcessingOptions {
     }
   });
 
+  console.log('[popup] getProcessingOptions collected:', { bgRemove, crop });
+
   // Collect individual custom metadata
   const customMetadata: Record<string, any> = {};
   if (exifToggle.checked) {
