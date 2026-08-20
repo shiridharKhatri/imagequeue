@@ -72,6 +72,9 @@ export interface ImageGenerationProvider {
 
   /** Optional: reset provider session-based states */
   resetSession?(): void;
+
+  /** Optional: check if the provider is currently generating a specific item in the content script */
+  isCurrentlyGenerating?(itemId: string): Promise<boolean>;
 }
 
 // ─── Image Processing ──────────────────────────────────────────

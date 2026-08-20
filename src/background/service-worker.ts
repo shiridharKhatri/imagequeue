@@ -165,6 +165,29 @@ function updateExtensionBadge(queue: QueueData | null): void {
 queueManager.setProvider(chatgptProvider);
 queueManager.onImageDownload = downloadAndStoreImage;
 
+// Bind provider callbacks for stateless recovery when service worker restarts
+chatgptProvider.onExternalCompleted = (itemId, imageUrl) => {
+  queueManager.handleExternalItemCompleted(itemId, imageUrl).catch(err => {
+    logger.error('Failed to process external ChatGPT item completion', { error: String(err) });
+  });
+};
+chatgptProvider.onExternalFailed = (itemId, error) => {
+  queueManager.handleExternalItemFailed(itemId, error).catch(err => {
+    logger.error('Failed to process external ChatGPT item failure', { error: String(err) });
+  });
+};
+
+geminiProvider.onExternalCompleted = (itemId, imageUrl) => {
+  queueManager.handleExternalItemCompleted(itemId, imageUrl).catch(err => {
+    logger.error('Failed to process external Gemini item completion', { error: String(err) });
+  });
+};
+geminiProvider.onExternalFailed = (itemId, error) => {
+  queueManager.handleExternalItemFailed(itemId, error).catch(err => {
+    logger.error('Failed to process external Gemini item failure', { error: String(err) });
+  });
+};
+
 // Broadcast queue updates to popup and update badge
 queueManager.setOnUpdate((queue: QueueData) => {
   updateExtensionBadge(queue);

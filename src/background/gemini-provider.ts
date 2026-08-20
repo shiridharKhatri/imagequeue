@@ -22,6 +22,9 @@ export class GeminiProvider implements ImageGenerationProvider {
   private pendingReject: ((error: Error) => void) | null = null;
   private uploadedInCurrentSession = false;
 
+  public onExternalCompleted?: (itemId: string, imageUrl: string) => void;
+  public onExternalFailed?: (itemId: string, error: string) => void;
+
   /**
    * Check if Gemini tab is available and logged in.
    */
@@ -118,6 +121,8 @@ export class GeminiProvider implements ImageGenerationProvider {
         height: payload.height,
       });
       this.clearPending();
+    } else if (this.onExternalCompleted) {
+      this.onExternalCompleted(payload.itemId, payload.imageUrl);
     }
   }
 
@@ -125,6 +130,23 @@ export class GeminiProvider implements ImageGenerationProvider {
     if (this.pendingReject) {
       this.pendingReject(new Error(payload.error));
       this.clearPending();
+    } else if (this.onExternalFailed) {
+      this.onExternalFailed(payload.itemId, payload.error);
+    }
+  }
+
+  /** Check if the Gemini content script is still actively generating the item */
+  async isCurrentlyGenerating(itemId: string): Promise<boolean> {
+    if (!this.geminiTabId) return false;
+    try {
+      const response = await sendToTab<{
+        pong: boolean;
+        ready: boolean;
+        activeGeneratingItemId: string | null;
+      }>(this.geminiTabId, MSG.PING);
+      return !!(response && response.activeGeneratingItemId === itemId);
+    } catch {
+      return false;
     }
   }
 

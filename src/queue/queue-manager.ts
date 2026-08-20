@@ -253,17 +253,85 @@ export class QueueManager {
     // If the queue was running, a generating item may have been interrupted
     const generating = this.queue.items.find((i) => i.status === 'generating');
     if (generating) {
-      logger.warn('Found interrupted generation, re-queuing', {
-        itemId: generating.id,
-      });
-      generating.status = 'queued';
-      generating.retryCount++;
-      await this.persist();
+      let stillActive = false;
+      if (this.provider && typeof this.provider.isCurrentlyGenerating === 'function') {
+        stillActive = await this.provider.isCurrentlyGenerating(generating.id);
+      }
+
+      if (stillActive) {
+        logger.info('Active generation confirmed in tab. SW will wait for completion event.', {
+          itemId: generating.id,
+        });
+      } else {
+        logger.warn('Found interrupted generation, re-queuing', {
+          itemId: generating.id,
+        });
+        generating.status = 'queued';
+        generating.retryCount++;
+        await this.persist();
+      }
     }
 
     // Resume processing if the queue was running
     if (this.queue.state === 'running') {
       logger.info('Resuming queue after restart');
+      this.processNext();
+    }
+  }
+
+  /**
+   * Handle completion of a queue item received from the provider callback.
+   * This is used when the service worker restarts during a generation.
+   */
+  async handleExternalItemCompleted(itemId: string, imageUrl: string): Promise<void> {
+    this.queue = (await queueStorage.load()) || this.queue;
+
+    const item = this.queue.items.find((i) => i.id === itemId);
+    if (item && item.status === 'generating') {
+      logger.info('Handling external item completion (stateless recovery)', { itemId });
+      
+      try {
+        if (this.onImageDownload) {
+          const downloaded = await this.onImageDownload(item.id, imageUrl);
+          if (!downloaded) {
+            throw new Error('Image download/validation failed');
+          }
+        }
+        
+        item.status = 'completed';
+        item.imageUrl = imageUrl;
+        item.imageStoreKey = item.id;
+        item.completedAt = Date.now();
+        item.error = undefined;
+      } catch (err) {
+        item.status = 'failed';
+        item.error = err instanceof Error ? err.message : String(err);
+      }
+
+      this.queue.updatedAt = Date.now();
+      await this.persist();
+
+      this.processing = false;
+      this.processNext();
+    }
+  }
+
+  /**
+   * Handle failure of a queue item received from the provider callback.
+   */
+  async handleExternalItemFailed(itemId: string, error: string): Promise<void> {
+    this.queue = (await queueStorage.load()) || this.queue;
+
+    const item = this.queue.items.find((i) => i.id === itemId);
+    if (item && item.status === 'generating') {
+      logger.info('Handling external item failure (stateless recovery)', { itemId, error });
+      
+      item.status = 'failed';
+      item.error = error;
+      this.queue.updatedAt = Date.now();
+      await this.persist();
+
+      this.processing = false;
       this.processNext();
     }
   }

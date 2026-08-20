@@ -26,6 +26,7 @@ const adapter = isGemini ? geminiAdapter : chatgptAdapter;
 
 let keepalivePort: chrome.runtime.Port | null = null;
 let keepaliveInterval: ReturnType<typeof setInterval> | null = null;
+let activeGeneratingItemId: string | null = null;
 
 /** Announce that the content script is loaded and ready */
 function announceReady(): void {
@@ -90,6 +91,7 @@ async function handleGenerateImage(
   payload: GenerateImagePayload
 ): Promise<void> {
   const { itemId, prompt, newConversation, refImageDataUrl } = payload;
+  activeGeneratingItemId = itemId;
 
   // Start keepalive to prevent service worker from sleeping
   startKeepalive();
@@ -135,6 +137,7 @@ async function handleGenerateImage(
       },
     }).catch(console.error);
   } finally {
+    activeGeneratingItemId = null;
     stopKeepalive();
   }
 }
@@ -240,7 +243,11 @@ function onMessage(
     }
 
     case MSG.PING: {
-      sendResponse({ pong: true, ready: detector.isReady() });
+      sendResponse({
+        pong: true,
+        ready: detector.isReady(),
+        activeGeneratingItemId
+      });
       return false;
     }
 

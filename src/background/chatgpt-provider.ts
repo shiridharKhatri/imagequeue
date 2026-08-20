@@ -25,6 +25,9 @@ export class ChatGPTProvider implements ImageGenerationProvider {
   private pendingReject: ((error: Error) => void) | null = null;
   private uploadedInCurrentSession = false;
 
+  public onExternalCompleted?: (itemId: string, imageUrl: string) => void;
+  public onExternalFailed?: (itemId: string, error: string) => void;
+
   /**
    * Check if ChatGPT is available and ready.
    */
@@ -145,6 +148,8 @@ export class ChatGPTProvider implements ImageGenerationProvider {
         height: payload.height,
       });
       this.clearPending();
+    } else if (this.onExternalCompleted) {
+      this.onExternalCompleted(payload.itemId, payload.imageUrl);
     }
   }
 
@@ -155,6 +160,23 @@ export class ChatGPTProvider implements ImageGenerationProvider {
     if (this.pendingReject) {
       this.pendingReject(new Error(payload.error));
       this.clearPending();
+    } else if (this.onExternalFailed) {
+      this.onExternalFailed(payload.itemId, payload.error);
+    }
+  }
+
+  /** Check if the ChatGPT content script is still actively generating the item */
+  async isCurrentlyGenerating(itemId: string): Promise<boolean> {
+    if (!this.chatgptTabId) return false;
+    try {
+      const response = await sendToTab<{
+        pong: boolean;
+        ready: boolean;
+        activeGeneratingItemId: string | null;
+      }>(this.chatgptTabId, MSG.PING);
+      return !!(response && response.activeGeneratingItemId === itemId);
+    } catch {
+      return false;
     }
   }
 
