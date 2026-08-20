@@ -68,7 +68,7 @@ export interface ImageGenerationProvider {
   isAvailable(): Promise<boolean>;
 
   /** Generate an image from a text prompt */
-  generateImage(prompt: string, refImageKey?: string): Promise<GeneratedImage>;
+  generateImage(prompt: string, refImageKey?: string, itemId?: string): Promise<GeneratedImage>;
 
   /** Optional: reset provider session-based states */
   resetSession?(): void;

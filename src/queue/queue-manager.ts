@@ -417,7 +417,7 @@ export class QueueManager {
 
       // Generate with timeout
       const result = await this.withTimeout(
-        this.provider.generateImage(nextItem.prompt, nextItem.refImageKey),
+        this.provider.generateImage(nextItem.prompt, nextItem.refImageKey, nextItem.id),
         this.generationTimeoutMs
       );
 

@@ -144,6 +144,18 @@ async function handleGenerateImage(
 
 /** Programmatically upload a reference image to the composer */
 async function uploadReferenceImage(dataUrl: string): Promise<void> {
+  // Helper to determine if an input is a feedback/help/support element on Google domains
+  function isFeedbackInput(el: HTMLInputElement): boolean {
+    const id = (el.id || '').toLowerCase();
+    const cls = (el.className || '').toLowerCase();
+    const name = (el.name || '').toLowerCase();
+    const ariaLabel = (el.getAttribute('aria-label') || '').toLowerCase();
+    return id.includes('feedback') || cls.includes('feedback') || name.includes('feedback') || ariaLabel.includes('feedback') ||
+           id.includes('help') || cls.includes('help') || ariaLabel.includes('help') ||
+           id.includes('support') || cls.includes('support') || ariaLabel.includes('support') ||
+           id.includes('bug') || cls.includes('bug') || ariaLabel.includes('bug');
+  }
+
   // Helper to recursively find file inputs in light DOM or shadow DOM
   function findFileInput(root: Document | Element | ShadowRoot): HTMLInputElement | null {
     try {
@@ -154,6 +166,12 @@ async function uploadReferenceImage(dataUrl: string): Promise<void> {
       if (accept) return accept as HTMLInputElement;
     } catch {
       // ignore selector errors
+    }
+
+    // Also check if the root element itself has a shadowRoot
+    if ('shadowRoot' in root && root.shadowRoot) {
+      const found = findFileInput(root.shadowRoot);
+      if (found) return found;
     }
 
     let children: Element[] = [];
@@ -173,30 +191,82 @@ async function uploadReferenceImage(dataUrl: string): Promise<void> {
   }
 
   let fileInput: HTMLInputElement | null = null;
+  const isGoogle = window.location.hostname.includes('google.com');
 
-  // 1. Try search closest to composer first
-  const composerEl = document.querySelector('.ql-editor[contenteditable="true"]') || 
-                     document.querySelector('div[contenteditable="true"][role="textbox"]') ||
-                     document.querySelector('rich-textarea') ||
-                     document.querySelector('textarea');
-                     
-  if (composerEl) {
-    let curr: Element | null = composerEl;
-    for (let depth = 0; depth < 6 && curr; depth++) {
-      fileInput = findFileInput(curr);
-      if (fileInput) break;
-      curr = curr.parentElement;
+  // 1. If on Google/Gemini, try to locate the file input inside rich-textarea shadow root first
+  if (isGoogle) {
+    try {
+      const richTextarea = document.querySelector('rich-textarea');
+      if (richTextarea && richTextarea.shadowRoot) {
+        fileInput = richTextarea.shadowRoot.querySelector('input[type="file"]') as HTMLInputElement;
+        if (!fileInput) {
+          fileInput = richTextarea.shadowRoot.querySelector('input[accept*="image"]') as HTMLInputElement;
+        }
+      }
+
+      if (!fileInput) {
+        const composerArea = document.querySelector('.input-area-container') ||
+                             document.querySelector('.input-area') ||
+                             document.querySelector('.text-area') ||
+                             document.querySelector('rich-textarea')?.parentElement;
+        if (composerArea) {
+          fileInput = composerArea.querySelector('input[type="file"]') as HTMLInputElement;
+          if (!fileInput) {
+            fileInput = composerArea.querySelector('input[accept*="image"]') as HTMLInputElement;
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[Image Queue] Error searching Gemini-specific selectors:', err);
     }
   }
 
-  // 2. Fall back to entire document
+  // 2. Try search closest to composer first
   if (!fileInput) {
-    fileInput = findFileInput(document);
+    const composerEl = document.querySelector('.ql-editor[contenteditable="true"]') || 
+                       document.querySelector('div[contenteditable="true"][role="textbox"]') ||
+                       document.querySelector('rich-textarea') ||
+                       document.querySelector('textarea');
+                       
+    if (composerEl) {
+      let curr: Element | null = composerEl;
+      for (let depth = 0; depth < 6 && curr; depth++) {
+        const found = findFileInput(curr);
+        if (found && (!isGoogle || !isFeedbackInput(found))) {
+          fileInput = found;
+          break;
+        }
+        curr = curr.parentElement;
+      }
+    }
+  }
+
+  // 3. Fall back to entire document
+  if (!fileInput) {
+    const found = findFileInput(document);
+    if (found && (!isGoogle || !isFeedbackInput(found))) {
+      fileInput = found;
+    } else if (isGoogle) {
+      // If we are on Google and matched a feedback input, retrieve all and filter out feedback inputs
+      const allInputs = Array.from(document.querySelectorAll('input[type="file"]')) as HTMLInputElement[];
+      const correctInput = allInputs.find(input => !isFeedbackInput(input));
+      if (correctInput) {
+        fileInput = correctInput;
+      }
+    }
   }
 
   if (!fileInput) {
     throw new Error('File input element not found in DOM or Shadow DOM');
   }
+
+  console.log('[Image Queue] Selected file input for upload:', {
+    tagName: fileInput.tagName,
+    id: fileInput.id,
+    className: fileInput.className,
+    accept: fileInput.getAttribute('accept'),
+    outerHTML: fileInput.outerHTML
+  });
 
   // Fetch the data URL and convert to blob
   const res = await fetch(dataUrl);

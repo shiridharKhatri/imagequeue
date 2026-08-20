@@ -3,6 +3,7 @@ import { MSG, sendToTab } from '../shared/messages';
 import type { GenerateImagePayload, ImageGeneratedPayload, GenerationFailedPayload } from '../shared/messages';
 import {
   findChatGPTTab,
+  openChatGPTTab,
   ensureContentScript,
   checkChatGPTStatus,
   waitForTabLoad,
@@ -34,24 +35,30 @@ export class ChatGPTProvider implements ImageGenerationProvider {
   async isAvailable(): Promise<boolean> {
     try {
       const settings = await settingsStorage.load();
-      const tab = await findChatGPTTab(settings.chatgptDomain);
+      let tab = await findChatGPTTab(settings.chatgptDomain);
 
       if (!tab || !tab.id) {
-        logger.warn('No ChatGPT tab found');
-        return false;
+        logger.info('No ChatGPT tab found, opening a new one...');
+        tab = await openChatGPTTab(settings.chatgptDomain);
+        if (!tab.id) {
+          logger.warn('Failed to create ChatGPT tab');
+          return false;
+        }
+        await waitForTabLoad(tab.id);
       }
 
-      this.chatgptTabId = tab.id;
+      const tabId = tab.id;
+      this.chatgptTabId = tabId;
 
       // Ensure content script is loaded
-      const scriptReady = await ensureContentScript(tab.id);
+      const scriptReady = await ensureContentScript(tabId);
       if (!scriptReady) {
         logger.warn('Content script not available');
         return false;
       }
 
       // Check ChatGPT status
-      const status = await checkChatGPTStatus(tab.id);
+      const status = await checkChatGPTStatus(tabId);
       if (!status.loggedIn) {
         logger.warn('ChatGPT not logged in');
         return false;
@@ -70,7 +77,7 @@ export class ChatGPTProvider implements ImageGenerationProvider {
    * This returns a Promise that resolves when the content script reports
    * IMAGE_GENERATED or rejects on GENERATION_FAILED / timeout.
    */
-  async generateImage(prompt: string, refImageKey?: string): Promise<GeneratedImage> {
+  async generateImage(prompt: string, refImageKey?: string, itemId?: string): Promise<GeneratedImage> {
     if (!this.chatgptTabId) {
       const available = await this.isAvailable();
       if (!available) {
@@ -102,19 +109,21 @@ export class ChatGPTProvider implements ImageGenerationProvider {
       (async () => {
         let refImageDataUrl: string | undefined = undefined;
         try {
-          const keyToLoad = refImageKey || 'ref-image-active';
-          const refImage = await imageStore.get(keyToLoad);
-          if (refImage) {
-            const settings = await settingsStorage.load();
-            const shouldUpload = refImageKey || settings.newConversationPerPrompt || !this.uploadedInCurrentSession;
-            if (shouldUpload) {
-              logger.info('Preparing product reference image for upload');
-              refImageDataUrl = await blobToDataUrl(refImage.blob);
-              if (!refImageKey) {
-                this.uploadedInCurrentSession = true;
+          if (imageStore) {
+            const keyToLoad = refImageKey || 'ref-image-active';
+            const refImage = await imageStore.get(keyToLoad);
+            if (refImage) {
+              const settings = await settingsStorage.load();
+              const shouldUpload = refImageKey || settings.newConversationPerPrompt || !this.uploadedInCurrentSession;
+              if (shouldUpload) {
+                logger.info('Preparing product reference image for upload');
+                refImageDataUrl = await blobToDataUrl(refImage.blob);
+                if (!refImageKey) {
+                  this.uploadedInCurrentSession = true;
+                }
+              } else {
+                logger.info('Skipping reference image upload: already uploaded in current conversation thread');
               }
-            } else {
-              logger.info('Skipping reference image upload: already uploaded in current conversation thread');
             }
           }
         } catch (err) {
@@ -122,7 +131,7 @@ export class ChatGPTProvider implements ImageGenerationProvider {
         }
 
         const payload: GenerateImagePayload = {
-          itemId: '', // Will be set by the caller
+          itemId: itemId || '',
           prompt,
           newConversation: false, // Already handled in background script
           refImageDataUrl,

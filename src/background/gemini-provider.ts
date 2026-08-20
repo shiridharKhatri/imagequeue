@@ -3,8 +3,10 @@ import { MSG, sendToTab } from '../shared/messages';
 import type { GenerateImagePayload, ImageGeneratedPayload, GenerationFailedPayload } from '../shared/messages';
 import {
   findGeminiTab,
+  openGeminiTab,
   ensureContentScript,
   checkGeminiStatus,
+  waitForTabLoad,
 } from './tab-manager';
 import { settingsStorage } from '../storage/storage';
 import { logger } from '../shared/logger';
@@ -31,24 +33,30 @@ export class GeminiProvider implements ImageGenerationProvider {
   async isAvailable(): Promise<boolean> {
     try {
       const settings = await settingsStorage.load();
-      const tab = await findGeminiTab(settings.geminiDomain);
+      let tab = await findGeminiTab(settings.geminiDomain);
 
       if (!tab || !tab.id) {
-        logger.warn('No Gemini tab found');
-        return false;
+        logger.info('No Gemini tab found, opening a new one...');
+        tab = await openGeminiTab(settings.geminiDomain);
+        if (!tab.id) {
+          logger.warn('Failed to create Gemini tab');
+          return false;
+        }
+        await waitForTabLoad(tab.id);
       }
 
-      this.geminiTabId = tab.id;
+      const tabId = tab.id;
+      this.geminiTabId = tabId;
 
       // Ensure content script is loaded
-      const scriptReady = await ensureContentScript(tab.id);
+      const scriptReady = await ensureContentScript(tabId);
       if (!scriptReady) {
         logger.warn('Content script not ready in Gemini tab');
         return false;
       }
 
       // Check status
-      const status = await checkGeminiStatus(tab.id);
+      const status = await checkGeminiStatus(tabId);
       if (!status.loggedIn) {
         logger.warn('Gemini tab exists but user is not logged in');
         return false;
@@ -64,7 +72,7 @@ export class GeminiProvider implements ImageGenerationProvider {
   /**
    * Send prompt to Gemini content script to generate image.
    */
-  async generateImage(prompt: string, refImageKey?: string): Promise<GeneratedImage> {
+  async generateImage(prompt: string, refImageKey?: string, itemId?: string): Promise<GeneratedImage> {
     if (!this.geminiTabId) {
       const available = await this.isAvailable();
       if (!available) {
@@ -99,7 +107,7 @@ export class GeminiProvider implements ImageGenerationProvider {
         }
 
         const payload: GenerateImagePayload = {
-          itemId: '', // Set by caller
+          itemId: itemId || '',
           prompt,
           newConversation: false,
           refImageDataUrl,
