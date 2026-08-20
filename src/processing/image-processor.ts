@@ -126,66 +126,112 @@ export async function removeBackground(inputBlob: Blob): Promise<Blob> {
   // Determine if we are removing a light background or a dark background
   const isLightBg = avgLuminance > 127;
 
-  // 2. Perform boundary-seeded flood fill background removal.
-  // This prevents eating white or dark areas inside the product outline (e.g. labels, caps, reflections).
-  const maxDiff = isLightBg ? 45 : 35; // Euclidean distance threshold for propagation
-  const softDiff = isLightBg ? 75 : 60; // Soft edge distance threshold
+  // 2. Perform edge-guided silhouette mask background removal.
+  // This detects the outer boundaries of the product from the left and right edges,
+  // creating a solid envelope that protects the white interior of the product (caps, labels, reflections).
+  const maxDiff = isLightBg ? 30 : 25; // Stricter color distance threshold for edge detection
+  const softDiff = isLightBg ? 60 : 50;
 
-  const visited = new Uint8Array(width * height);
-  const queueX = new Int32Array(width * height);
-  const queueY = new Int32Array(width * height);
-  let head = 0;
-  let tail = 0;
+  const leftX = new Int32Array(height);
+  const rightX = new Int32Array(height);
 
-  function enqueue(x: number, y: number) {
-    const idx = y * width + x;
-    if (visited[idx]) return;
-    visited[idx] = 1;
-    queueX[tail] = x;
-    queueY[tail] = y;
-    tail++;
-  }
-
-  // Seed all borders of the image
-  for (let x = 0; x < width; x++) {
-    enqueue(x, 0);
-    enqueue(x, height - 1);
-  }
-  for (let y = 0; y < height; y++) {
-    enqueue(0, y);
-    enqueue(width - 1, y);
-  }
-
-  while (head < tail) {
-    const x = queueX[head];
-    const y = queueY[head];
-    head++;
-
+  function getPixelDist(x: number, y: number): number {
     const idx = (y * width + x) * 4;
-    const r = data[idx];
-    const g = data[idx + 1];
-    const b = data[idx + 2];
-
-    const dist = Math.sqrt(
-      Math.pow(r - avgR, 2) +
-      Math.pow(g - avgG, 2) +
-      Math.pow(b - avgB, 2)
+    return Math.sqrt(
+      Math.pow(data[idx] - avgR, 2) +
+      Math.pow(data[idx + 1] - avgG, 2) +
+      Math.pow(data[idx + 2] - avgB, 2)
     );
+  }
 
-    if (dist <= maxDiff) {
-      // It is fully background
-      data[idx + 3] = 0; // Transparent
+  function isNonBg(x: number, y: number): boolean {
+    return getPixelDist(x, y) > maxDiff;
+  }
 
-      // Propagate BFS to 4-connected neighbors
-      if (x > 0) enqueue(x - 1, y);
-      if (x < width - 1) enqueue(x + 1, y);
-      if (y > 0) enqueue(x, y - 1);
-      if (y < height - 1) enqueue(x, y + 1);
-    } else if (dist <= softDiff) {
-      // Linear transition of transparency on the outer edge (anti-aliasing).
-      // We do NOT propagate BFS past these edge pixels to prevent leakage.
-      const ratio = (dist - maxDiff) / (softDiff - maxDiff);
-      data[idx + 3] = Math.round(255 * ratio);
+  // Find left and right boundaries for each row
+  for (let y = 0; y < height; y++) {
+    let foundLeft = false;
+    for (let x = 0; x < width - 2; x++) {
+      // Require 3 consecutive non-background pixels to filter out noise
+      if (isNonBg(x, y) && isNonBg(x + 1, y) && isNonBg(x + 2, y)) {
+        leftX[y] = x;
+        foundLeft = true;
+        break;
+      }
+    }
+    if (!foundLeft) leftX[y] = width;
+
+    let foundRight = false;
+    for (let x = width - 1; x >= 2; x--) {
+      if (isNonBg(x, y) && isNonBg(x - 1, y) && isNonBg(x - 2, y)) {
+        rightX[y] = x;
+        foundRight = true;
+        break;
+      }
+    }
+    if (!foundRight) rightX[y] = -1;
+  }
+
+  // Smooth boundaries using a sliding window to eliminate jagged edges
+  const smoothLeft = new Int32Array(height);
+  const smoothRight = new Int32Array(height);
+  const windowSize = 5;
+  const half = Math.floor(windowSize / 2);
+
+  for (let y = 0; y < height; y++) {
+    let sumL = 0;
+    let sumR = 0;
+    let count = 0;
+    for (let dy = -half; dy <= half; dy++) {
+      const ny = y + dy;
+      if (ny >= 0 && ny < height) {
+        if (leftX[ny] < width && rightX[ny] >= 0) {
+          sumL += leftX[ny];
+          sumR += rightX[ny];
+          count++;
+        }
+      }
+    }
+    if (count > 0) {
+      smoothLeft[y] = Math.round(sumL / count);
+      smoothRight[y] = Math.round(sumR / count);
+    } else {
+      smoothLeft[y] = width;
+      smoothRight[y] = -1;
+    }
+  }
+
+  // Clear background outside the smoothed product boundaries
+  for (let y = 0; y < height; y++) {
+    const l = smoothLeft[y];
+    const r = smoothRight[y];
+
+    // Clear left background
+    for (let x = 0; x < Math.min(l, width); x++) {
+      data[(y * width + x) * 4 + 3] = 0;
+    }
+
+    // Clear right background
+    for (let x = Math.max(r + 1, 0); x < width; x++) {
+      data[(y * width + x) * 4 + 3] = 0;
+    }
+
+    // Apply soft anti-aliased edge transparency transitions on boundary pixels
+    if (l < width) {
+      const idx = (y * width + l) * 4;
+      const d = getPixelDist(l, y);
+      if (d <= softDiff) {
+        const ratio = (d - maxDiff) / (softDiff - maxDiff);
+        data[idx + 3] = Math.max(0, Math.min(255, Math.round(255 * ratio)));
+      }
+    }
+    if (r >= 0 && r < width) {
+      const idx = (y * width + r) * 4;
+      const d = getPixelDist(r, y);
+      if (d <= softDiff) {
+        const ratio = (d - maxDiff) / (softDiff - maxDiff);
+        data[idx + 3] = Math.max(0, Math.min(255, Math.round(255 * ratio)));
+      }
     }
   }
 
