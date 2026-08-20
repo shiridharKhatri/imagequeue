@@ -928,12 +928,29 @@ interface SimpleLog {
   timestamp: number;
   level: string;
   message: string;
+  data?: Record<string, unknown>;
 }
 
 function appendLogToPopup(entry: SimpleLog): void {
   const time = new Date(entry.timestamp).toLocaleTimeString('en-US', { hour12: false });
   const entryEl = document.createElement('div');
-  entryEl.innerHTML = `<span style="color:#71717a;">[${time}]</span> <span style="font-weight:bold; color:${entry.level === 'ERROR' ? '#ef4444' : entry.level === 'WARN' ? '#f59e0b' : '#3b82f6'};">[${entry.level}]</span> ${escapeHtml(entry.message)}`;
+  entryEl.style.marginBottom = '6px';
+  
+  let extraText = '';
+  if (entry.data) {
+    try {
+      // Truncate html string in JSON if too long to keep popup readable
+      const cleanData = { ...entry.data };
+      if (typeof cleanData.html === 'string' && cleanData.html.length > 500) {
+        cleanData.html = cleanData.html.slice(0, 500) + '… [TRUNCATED]';
+      }
+      extraText = `<pre style="margin:4px 0 0 12px; padding:6px; background:#27272a; border:1px solid #3f3f46; border-radius:4px; font-size:8px; color:#e4e4e7; max-height:100px; overflow:auto; white-space:pre-wrap; font-family:monospace;">${escapeHtml(JSON.stringify(cleanData, null, 2))}</pre>`;
+    } catch {
+      // ignore
+    }
+  }
+
+  entryEl.innerHTML = `<div><span style="color:#71717a;">[${time}]</span> <span style="font-weight:bold; color:${entry.level === 'ERROR' ? '#ef4444' : entry.level === 'WARN' ? '#f59e0b' : '#3b82f6'};">[${entry.level}]</span> ${escapeHtml(entry.message)}</div>${extraText}`;
   
   // Clear placeholder
   if (debugLogsEntries.textContent === 'No log entries. Switch tabs or wait to see logs.') {

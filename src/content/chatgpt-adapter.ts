@@ -206,6 +206,7 @@ export function waitForImage(
     }, timeoutMs);
 
     let lastMessageAppearTime: number | null = null;
+    let checkAttemptsAfterStop = 0;
 
     const checkForImage = (): boolean => {
       // Check for rate/usage limit warnings immediately
@@ -262,6 +263,12 @@ export function waitForImage(
 
       // If the composer is still disabled or DALL-E is still working, keep waiting
       if (!isReady()) {
+        return false;
+      }
+
+      // Let the DOM settle briefly after generating stops to ensure image URL or error text is fully loaded
+      if (checkAttemptsAfterStop < 3) {
+        checkAttemptsAfterStop++;
         return false;
       }
 
