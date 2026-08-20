@@ -97,12 +97,8 @@ async function handleProcessImages(
     const isBgRemove = options.bgRemove?.[item.id] || false;
     const isCrop = options.crop?.[item.id] || false;
 
-    // For feature image, override resolution to 300x300
-    const isFeatureImage = item.prompt.toLowerCase().includes('background removed') || item.prompt.toLowerCase().includes('300x300');
-    const imageOptions = isFeatureImage ? { ...options, resolution: '300x300' } : options;
-
     let processed = await processImage(stored.blob, {
-      ...imageOptions,
+      ...options,
       metadata: itemMetadata,
     });
 
@@ -179,12 +175,8 @@ async function handleBuildZip(
       const isBgRemove = options.bgRemove?.[item.id] || false;
       const isCrop = options.crop?.[item.id] || false;
 
-      // For feature image, override resolution to 300x300
-      const isFeatureImage = item.prompt.toLowerCase().includes('background removed') || item.prompt.toLowerCase().includes('300x300');
-      const imageOptions = isFeatureImage ? { ...options, resolution: '300x300' } : options;
-
       blob = await processImage(stored.blob, {
-        ...imageOptions,
+        ...options,
         metadata: itemMetadata,
       });
 
@@ -255,12 +247,8 @@ async function handleProcessSingleImage(
   const isBgRemove = options.bgRemove?.[itemId] || false;
   const isCrop = options.crop?.[itemId] || false;
 
-  // For feature image, override resolution to 300x300
-  const isFeatureImage = prompt.toLowerCase().includes('background removed') || prompt.toLowerCase().includes('300x300');
-  const imageOptions = isFeatureImage ? { ...options, resolution: '300x300' } : options;
-
   let processed = await processImage(stored.blob, {
-    ...imageOptions,
+    ...options,
     metadata: itemMetadata,
   });
 

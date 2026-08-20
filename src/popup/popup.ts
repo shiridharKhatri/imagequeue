@@ -819,10 +819,8 @@ async function handleUploadWP(): Promise<void> {
         throw new Error(`Failed to find image data for prompt ${i + 1}`);
       }
 
-      // Process/compress the image — override resolution to 300x300 for feature image
-      const isFeatureImage = item.prompt.toLowerCase().includes('background removed') || item.prompt.toLowerCase().includes('300x300');
-      const imageOptions = isFeatureImage ? { ...options, resolution: '300x300' } : options;
-      let processedBlob = await processImage(storedImage.blob, imageOptions);
+      // Process/compress the image
+      let processedBlob = await processImage(storedImage.blob, options);
 
       // Check if BG Remove and Crop toggles are checked for this card
       const bgCheck = batchImageList.querySelector(`.batch-bg-remove-check[data-id="${item.id}"]`) as HTMLInputElement | null;
