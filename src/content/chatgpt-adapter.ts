@@ -548,6 +548,7 @@ function isImageUrl(url: string): boolean {
   if (url.includes('/backend-api/estuary/content')) return true;
   if (url.includes('/backend-api/files/')) return true;
   if (url.includes('/backend-api/')) return true;
+  if (url.includes('/files/')) return true;
 
   // Common image extensions
   const imageExtensions = ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg'];

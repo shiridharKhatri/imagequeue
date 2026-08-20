@@ -939,10 +939,10 @@ function appendLogToPopup(entry: SimpleLog): void {
   let extraText = '';
   if (entry.data) {
     try {
-      // Truncate html string in JSON if too long to keep popup readable
+      // Keep html logging untruncated for complete DOM diagnostics
       const cleanData = { ...entry.data };
-      if (typeof cleanData.html === 'string' && cleanData.html.length > 500) {
-        cleanData.html = cleanData.html.slice(0, 500) + '… [TRUNCATED]';
+      if (typeof cleanData.html === 'string' && cleanData.html.length > 20000) {
+        cleanData.html = cleanData.html.slice(0, 20000) + '… [TRUNCATED]';
       }
       extraText = `<pre style="margin:4px 0 0 12px; padding:6px; background:#27272a; border:1px solid #3f3f46; border-radius:4px; font-size:8px; color:#e4e4e7; max-height:100px; overflow:auto; white-space:pre-wrap; font-family:monospace;">${escapeHtml(JSON.stringify(cleanData, null, 2))}</pre>`;
     } catch {
