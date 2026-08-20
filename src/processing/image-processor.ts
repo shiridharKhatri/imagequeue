@@ -126,111 +126,119 @@ export async function removeBackground(inputBlob: Blob): Promise<Blob> {
   // Determine if we are removing a light background or a dark background
   const isLightBg = avgLuminance > 127;
 
-  // 2. Perform edge-guided silhouette mask background removal.
-  // This detects the outer boundaries of the product from the left and right edges,
-  // creating a solid envelope that protects the white interior of the product (caps, labels, reflections).
-  const maxDiff = isLightBg ? 30 : 25; // Stricter color distance threshold for edge detection
-  const softDiff = isLightBg ? 60 : 50;
+  // 2. Perform Morphological Closed Flood Fill background removal.
+  // This detects outer background boundaries by first dilating product edge outlines
+  // to close any highlight gaps (preventing leaks into white cap/bottle regions).
+  // Then it flood-fills the outer background, and reclaims the dilated margins.
+  const maxDiff = isLightBg ? 30 : 25; // Euclidean color distance threshold
+  const softDiff = isLightBg ? 65 : 55;
+  const radius = 3; // Morphological dilation/erosion radius to close highlights
 
-  const leftX = new Int32Array(height);
-  const rightX = new Int32Array(height);
-
-  function getPixelDist(x: number, y: number): number {
-    const idx = (y * width + x) * 4;
-    return Math.sqrt(
-      Math.pow(data[idx] - avgR, 2) +
-      Math.pow(data[idx + 1] - avgG, 2) +
-      Math.pow(data[idx + 2] - avgB, 2)
-    );
-  }
-
-  function isNonBg(x: number, y: number): boolean {
-    return getPixelDist(x, y) > maxDiff;
-  }
-
-  // Find left and right boundaries for each row
+  const isEdge = new Uint8Array(width * height);
   for (let y = 0; y < height; y++) {
-    let foundLeft = false;
-    for (let x = 0; x < width - 2; x++) {
-      // Require 3 consecutive non-background pixels to filter out noise
-      if (isNonBg(x, y) && isNonBg(x + 1, y) && isNonBg(x + 2, y)) {
-        leftX[y] = x;
-        foundLeft = true;
-        break;
+    for (let x = 0; x < width; x++) {
+      const idx = (y * width + x) * 4;
+      const dist = Math.sqrt(
+        Math.pow(data[idx] - avgR, 2) +
+        Math.pow(data[idx + 1] - avgG, 2) +
+        Math.pow(data[idx + 2] - avgB, 2)
+      );
+      if (dist > maxDiff) {
+        isEdge[y * width + x] = 1;
       }
     }
-    if (!foundLeft) leftX[y] = width;
-
-    let foundRight = false;
-    for (let x = width - 1; x >= 2; x--) {
-      if (isNonBg(x, y) && isNonBg(x - 1, y) && isNonBg(x - 2, y)) {
-        rightX[y] = x;
-        foundRight = true;
-        break;
-      }
-    }
-    if (!foundRight) rightX[y] = -1;
   }
 
-  // Smooth boundaries using a sliding window to eliminate jagged edges
-  const smoothLeft = new Int32Array(height);
-  const smoothRight = new Int32Array(height);
-  const windowSize = 5;
-  const half = Math.floor(windowSize / 2);
-
+  // Box Dilation to close highlight gaps in contours
+  const dilated = new Uint8Array(width * height);
   for (let y = 0; y < height; y++) {
-    let sumL = 0;
-    let sumR = 0;
-    let count = 0;
-    for (let dy = -half; dy <= half; dy++) {
-      const ny = y + dy;
-      if (ny >= 0 && ny < height) {
-        if (leftX[ny] < width && rightX[ny] >= 0) {
-          sumL += leftX[ny];
-          sumR += rightX[ny];
-          count++;
+    for (let x = 0; x < width; x++) {
+      if (isEdge[y * width + x]) {
+        const startY = Math.max(0, y - radius);
+        const endY = Math.min(height - 1, y + radius);
+        const startX = Math.max(0, x - radius);
+        const endX = Math.min(width - 1, x + radius);
+        for (let ny = startY; ny <= endY; ny++) {
+          for (let nx = startX; nx <= endX; nx++) {
+            dilated[ny * width + nx] = 1;
+          }
         }
       }
     }
-    if (count > 0) {
-      smoothLeft[y] = Math.round(sumL / count);
-      smoothRight[y] = Math.round(sumR / count);
-    } else {
-      smoothLeft[y] = width;
-      smoothRight[y] = -1;
+  }
+
+  // Seed borders to flood-fill the outer background region
+  const isBg = new Uint8Array(width * height);
+  const queueX = new Int32Array(width * height);
+  const queueY = new Int32Array(width * height);
+  let head = 0;
+  let tail = 0;
+
+  function enqueue(x: number, y: number) {
+    const idx = y * width + x;
+    if (isBg[idx] || dilated[idx]) return;
+    isBg[idx] = 1;
+    queueX[tail] = x;
+    queueY[tail] = y;
+    tail++;
+  }
+
+  // Seed all borders
+  for (let x = 0; x < width; x++) {
+    enqueue(x, 0);
+    enqueue(x, height - 1);
+  }
+  for (let y = 0; y < height; y++) {
+    enqueue(0, y);
+    enqueue(width - 1, y);
+  }
+
+  while (head < tail) {
+    const x = queueX[head];
+    const y = queueY[head];
+    head++;
+
+    if (x > 0) enqueue(x - 1, y);
+    if (x < width - 1) enqueue(x + 1, y);
+    if (y > 0) enqueue(x, y - 1);
+    if (y < height - 1) enqueue(x, y + 1);
+  }
+
+  // Reclaim margins by expanding the background mask back by the dilation radius
+  const finalBg = new Uint8Array(width * height);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (isBg[y * width + x]) {
+        const startY = Math.max(0, y - radius);
+        const endY = Math.min(height - 1, y + radius);
+        const startX = Math.max(0, x - radius);
+        const endX = Math.min(width - 1, x + radius);
+        for (let ny = startY; ny <= endY; ny++) {
+          for (let nx = startX; nx <= endX; nx++) {
+            finalBg[ny * width + nx] = 1;
+          }
+        }
+      }
     }
   }
 
-  // Clear background outside the smoothed product boundaries
+  // Apply alpha transparency with soft anti-aliased transitions
   for (let y = 0; y < height; y++) {
-    const l = smoothLeft[y];
-    const r = smoothRight[y];
-
-    // Clear left background
-    for (let x = 0; x < Math.min(l, width); x++) {
-      data[(y * width + x) * 4 + 3] = 0;
-    }
-
-    // Clear right background
-    for (let x = Math.max(r + 1, 0); x < width; x++) {
-      data[(y * width + x) * 4 + 3] = 0;
-    }
-
-    // Apply soft anti-aliased edge transparency transitions on boundary pixels
-    if (l < width) {
-      const idx = (y * width + l) * 4;
-      const d = getPixelDist(l, y);
-      if (d <= softDiff) {
-        const ratio = (d - maxDiff) / (softDiff - maxDiff);
-        data[idx + 3] = Math.max(0, Math.min(255, Math.round(255 * ratio)));
-      }
-    }
-    if (r >= 0 && r < width) {
-      const idx = (y * width + r) * 4;
-      const d = getPixelDist(r, y);
-      if (d <= softDiff) {
-        const ratio = (d - maxDiff) / (softDiff - maxDiff);
-        data[idx + 3] = Math.max(0, Math.min(255, Math.round(255 * ratio)));
+    for (let x = 0; x < width; x++) {
+      const idx = y * width + x;
+      if (finalBg[idx]) {
+        const pixelIdx = idx * 4;
+        const dist = Math.sqrt(
+          Math.pow(data[pixelIdx] - avgR, 2) +
+          Math.pow(data[pixelIdx + 1] - avgG, 2) +
+          Math.pow(data[pixelIdx + 2] - avgB, 2)
+        );
+        if (dist <= maxDiff) {
+          data[pixelIdx + 3] = 0; // Fully transparent
+        } else if (dist <= softDiff) {
+          const ratio = (dist - maxDiff) / (softDiff - maxDiff);
+          data[pixelIdx + 3] = Math.max(0, Math.min(255, Math.round(255 * ratio)));
+        }
       }
     }
   }
