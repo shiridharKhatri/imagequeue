@@ -10,188 +10,272 @@
   <link rel="stylesheet" href="options.css">
 </head>
 <body>
-  <div id="app">
-    <header class="header">
-      <h1>Image Queue Settings</h1>
-    </header>
+  <div id="app" class="edge-layout">
+    <!-- Left Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-title-container">
+          <!-- Puzzle piece SVG -->
+          <svg class="puzzle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+          </svg>
+          <span class="sidebar-title">Extensions</span>
+        </div>
+      </div>
+      
+      <nav class="sidebar-nav">
+        <button class="nav-item active" data-tab="general-tab">
+          <!-- Gear icon SVG -->
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+          <span>General Settings</span>
+        </button>
+        <button class="nav-item" data-tab="wordpress-tab">
+          <!-- Web icon SVG -->
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="2" y1="12" x2="22" y2="12"></line>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+          </svg>
+          <span>WordPress Integration</span>
+        </button>
+        <button class="nav-item" data-tab="diagnostics-tab">
+          <!-- Terminal icon SVG -->
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="4 17 10 11 4 5"></polyline>
+            <line x1="12" y1="19" x2="20" y2="19"></line>
+          </svg>
+          <span>Diagnostics & Logs</span>
+        </button>
+      </nav>
 
-    <main class="settings-grid">
-      <div class="settings-column">
-        <!-- ChatGPT Settings -->
+      <div class="sidebar-footer">
+        <div class="dev-mode-container">
+          <div class="dev-mode-text">
+            <span class="dev-mode-label">Developer mode</span>
+            <span class="dev-mode-sub">Load unpacked extensions</span>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="dev-mode-toggle" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Right Content Area -->
+    <main class="content-area">
+      <div class="content-header">
+        <h2>Installed extensions</h2>
+        <div class="actions-row">
+          <button id="btn-save" class="btn btn-primary">Save Settings</button>
+          <span id="save-status" class="save-status"></span>
+        </div>
+      </div>
+
+      <!-- Tab 1: General Settings -->
+      <div id="general-tab" class="tab-content active">
+        <!-- AI Domain Configurations -->
         <section class="card">
-          <h2 class="card-title">ChatGPT</h2>
-
-          <div class="field">
-            <label for="chatgpt-domain">ChatGPT Domain</label>
-            <input type="text" id="chatgpt-domain" class="input" placeholder="chatgpt.com" />
-            <span class="field-hint">The domain where ChatGPT is hosted</span>
+          <div class="card-header">
+            <h3 class="card-title">AI Provider Configurations</h3>
+            <p class="card-desc">Configure target domains for automating ChatGPT and Gemini prompts.</p>
+          </div>
+          <div class="card-body">
+            <div class="field-row">
+              <div class="field">
+                <label for="chatgpt-domain">ChatGPT Domain</label>
+                <input type="text" id="chatgpt-domain" class="input" placeholder="chatgpt.com" />
+              </div>
+              <div class="field">
+                <label for="gemini-domain">Gemini Domain</label>
+                <input type="text" id="gemini-domain" class="input" placeholder="gemini.google.com" />
+              </div>
+            </div>
           </div>
         </section>
 
-        <!-- Gemini Settings -->
+        <!-- Queue & Automation Behavior -->
         <section class="card">
-          <h2 class="card-title">Gemini</h2>
-
-          <div class="field">
-            <label for="gemini-domain">Gemini Domain</label>
-            <input type="text" id="gemini-domain" class="input" placeholder="gemini.google.com" />
-            <span class="field-hint">The domain where Gemini is hosted</span>
+          <div class="card-header">
+            <h3 class="card-title">Queue & Automation Behavior</h3>
+            <p class="card-desc">Set retry counts, timeouts, and error actions for generation queues.</p>
+          </div>
+          <div class="card-body">
+            <div class="field-row">
+              <div class="field">
+                <label for="max-retries">Auto Retry Count</label>
+                <input type="number" id="max-retries" class="input" min="0" max="10" />
+              </div>
+              <div class="field">
+                <label for="gen-timeout">Generation Timeout (seconds)</label>
+                <input type="number" id="gen-timeout" class="input" min="30" max="600" />
+              </div>
+            </div>
+            <div class="setting-toggle-row">
+              <div class="toggle-text">
+                <span class="toggle-title">Pause queue when an item fails</span>
+                <span class="toggle-sub">Pauses the execution worker immediately for troubleshooting</span>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="pause-on-failure" />
+                <span class="slider"></span>
+              </label>
+            </div>
           </div>
         </section>
 
-        <!-- Queue Settings -->
+        <!-- Default Output Settings -->
         <section class="card">
-          <h2 class="card-title">Queue Behavior</h2>
-
-          <div class="field">
-            <label for="max-retries">Auto Retry Count</label>
-            <input type="number" id="max-retries" class="input input-sm" min="0" max="10" />
+          <div class="card-header">
+            <h3 class="card-title">Default Output Settings</h3>
+            <p class="card-desc">Adjust default file formats, quality parameters, and packaging settings.</p>
           </div>
-
-          <div class="field">
-            <label for="gen-timeout">Generation Timeout (seconds)</label>
-            <input type="number" id="gen-timeout" class="input input-sm" min="30" max="600" />
-          </div>
-
-          <div class="field">
-            <label class="checkbox-label">
-              <input type="checkbox" id="pause-on-failure" />
-              <span>Pause queue when an item fails</span>
-            </label>
-          </div>
-        </section>
-
-        <!-- Diagnostics -->
-        <section class="card">
-          <h2 class="card-title">Diagnostics</h2>
-          <div id="diagnostics" class="diagnostics-grid">
-            <div class="diag-item">
-              <span class="diag-label">ChatGPT tab detected:</span>
-              <span id="diag-tab" class="diag-value">—</span>
+          <div class="card-body">
+            <div class="field-row-3">
+              <div class="field">
+                <label for="default-format">Default Format</label>
+                <select id="default-format" class="select">
+                  <option value="png">PNG</option>
+                  <option value="jpg">JPG</option>
+                  <option value="webp">WebP</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="default-quality">Default Quality</label>
+                <input type="number" id="default-quality" class="input" min="10" max="100" step="5" />
+              </div>
+              <div class="field">
+                <label for="default-resolution">Target Resolution</label>
+                <select id="default-resolution" class="select">
+                  <option value="0">Original</option>
+                  <option value="1200x628">1200x628 (WordPress Widescreen)</option>
+                  <option value="1200x1200">1200x1200 (Square)</option>
+                  <option value="1920x1080">1920x1080 (Widescreen)</option>
+                  <option value="1080x1920">1080x1920 (Vertical Story)</option>
+                  <option value="1920">1920px (Width Limit)</option>
+                  <option value="1600">1600px (Width Limit)</option>
+                  <option value="1200">1200px (Width Limit)</option>
+                  <option value="1000">1000px (Width Limit)</option>
+                  <option value="800">800px (Width Limit)</option>
+                </select>
+              </div>
             </div>
-            <div class="diag-item">
-              <span class="diag-label">ChatGPT ready:</span>
-              <span id="diag-ready" class="diag-value">—</span>
+            <div class="field">
+              <label for="default-prefix">Default Filename Prefix</label>
+              <input type="text" id="default-prefix" class="input" placeholder="image" />
             </div>
-            <div class="diag-item">
-              <span class="diag-label">Queue worker:</span>
-              <span id="diag-worker" class="diag-value">—</span>
+            <div class="setting-toggle-row">
+              <div class="toggle-text">
+                <span class="toggle-title">Automatically create ZIP when queue completes</span>
+                <span class="toggle-sub">Bundles all processed images automatically</span>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="auto-zip" />
+                <span class="slider"></span>
+              </label>
             </div>
-            <div class="diag-item">
-              <span class="diag-label">Downloads permission:</span>
-              <span id="diag-downloads" class="diag-value">—</span>
+            <div class="setting-toggle-row">
+              <div class="toggle-text">
+                <span class="toggle-title">Delete temporary images after ZIP download</span>
+                <span class="toggle-sub">Cleans local extension indexedDB cache storage</span>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="delete-after-zip" />
+                <span class="slider"></span>
+              </label>
             </div>
-            <div class="diag-item">
-              <span class="diag-label">Storage used:</span>
-              <span id="diag-storage" class="diag-value">—</span>
-            </div>
-          </div>
-          <button id="btn-refresh-diag" class="btn btn-ghost">Refresh Diagnostics</button>
-        </section>
-
-        <!-- WordPress Settings -->
-        <section class="card">
-          <h2 class="card-title">WordPress Integration</h2>
-
-          <div class="field">
-            <label class="checkbox-label">
-              <input type="checkbox" id="wp-enabled" />
-              <span>Enable direct WordPress upload</span>
-            </label>
-          </div>
-
-          <div class="field">
-            <label for="wp-site-url">WordPress Site URL</label>
-            <input type="text" id="wp-site-url" class="input" placeholder="https://us-vivalis.store" />
-            <span class="field-hint">Your WordPress base URL</span>
-          </div>
-
-          <div class="field">
-            <label for="wp-api-key">X-AI-Upload-Key</label>
-            <input type="password" id="wp-api-key" class="input" placeholder="aimedia_..." />
-            <span class="field-hint">API Key found in WP Settings -> AI Media Uploader</span>
-          </div>
-
-          <div class="field">
-            <label for="default-author">Default Author Name</label>
-            <input type="text" id="default-author" class="input" placeholder="e.g. John Doe" />
-            <span class="field-hint">Default author name for uploads</span>
           </div>
         </section>
       </div>
 
-      <div class="settings-column">
-        <!-- Defaults -->
+      <!-- Tab 2: WordPress Settings -->
+      <div id="wordpress-tab" class="tab-content">
         <section class="card">
-          <h2 class="card-title">Default Output Settings</h2>
-
-          <div class="field">
-            <label for="default-format">Default Format</label>
-            <select id="default-format" class="select">
-              <option value="png">PNG</option>
-              <option value="jpg">JPG</option>
-              <option value="webp">WebP</option>
-            </select>
+          <div class="card-header">
+            <h3 class="card-title">WordPress Media Upload Integration</h3>
+            <p class="card-desc">Configure direct REST API media upload variables for automated remote store updates.</p>
           </div>
-
-          <div class="field">
-            <label for="default-quality">Default Quality</label>
-            <input type="number" id="default-quality" class="input input-sm" min="10" max="100" step="5" />
+          <div class="card-body">
+            <div class="setting-toggle-row">
+              <div class="toggle-text">
+                <span class="toggle-title">Enable direct WordPress upload</span>
+                <span class="toggle-sub">Uploads successfully processed items directly to WP Media Library</span>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="wp-enabled" />
+                <span class="slider"></span>
+              </label>
+            </div>
+            <div class="field">
+              <label for="wp-site-url">WordPress Site URL</label>
+              <input type="text" id="wp-site-url" class="input" placeholder="https://us-vivalis.store" />
+            </div>
+            <div class="field">
+              <label for="wp-api-key">X-AI-Upload-Key (API Key)</label>
+              <input type="password" id="wp-api-key" class="input" placeholder="aimedia_..." />
+            </div>
+            <div class="field">
+              <label for="default-author">Default Author Name</label>
+              <input type="text" id="default-author" class="input" placeholder="e.g. John Doe" />
+            </div>
           </div>
+        </section>
+      </div>
 
-  <div class="field">
-            <label for="default-resolution">Default Target Resolution</label>
-            <select id="default-resolution" class="select">
-              <option value="0">Original</option>
-              <option value="1200x628">1200x628 (WordPress Widescreen)</option>
-              <option value="1200x1200">1200x1200 (Square)</option>
-              <option value="1920x1080">1920x1080 (Widescreen)</option>
-              <option value="1080x1920">1080x1920 (Vertical Story)</option>
-              <option value="1920">1920px (Width Limit)</option>
-              <option value="1600">1600px (Width Limit)</option>
-              <option value="1200">1200px (Width Limit)</option>
-              <option value="1000">1000px (Width Limit)</option>
-              <option value="800">800px (Width Limit)</option>
-            </select>
+      <!-- Tab 3: Diagnostics & Logs -->
+      <div id="diagnostics-tab" class="tab-content">
+        <!-- Diagnostics -->
+        <section class="card">
+          <div class="card-header">
+            <h3 class="card-title">System Diagnostics</h3>
+            <p class="card-desc">Current state and connectivity checks of the background automated queue script.</p>
           </div>
-
-          <div class="field">
-            <label for="default-prefix">Default Filename Prefix</label>
-            <input type="text" id="default-prefix" class="input" placeholder="image" />
-          </div>
-
-          <div class="field">
-            <label class="checkbox-label">
-              <input type="checkbox" id="auto-zip" />
-              <span>Automatically create ZIP when queue completes</span>
-            </label>
-          </div>
-
-          <div class="field">
-            <label class="checkbox-label">
-              <input type="checkbox" id="delete-after-zip" />
-              <span>Delete temporary images after ZIP download</span>
-            </label>
+          <div class="card-body">
+            <div id="diagnostics" class="diagnostics-grid">
+              <div class="diag-item">
+                <span class="diag-label">ChatGPT Tab Connected</span>
+                <span id="diag-tab" class="diag-value">—</span>
+              </div>
+              <div class="diag-item">
+                <span class="diag-label">ChatGPT Ready State</span>
+                <span id="diag-ready" class="diag-value">—</span>
+              </div>
+              <div class="diag-item">
+                <span class="diag-label">Active Queue Worker</span>
+                <span id="diag-worker" class="diag-value">—</span>
+              </div>
+              <div class="diag-item">
+                <span class="diag-label">Downloads Folder Permission</span>
+                <span id="diag-downloads" class="diag-value">—</span>
+              </div>
+              <div class="diag-item">
+                <span class="diag-label">Local Extension Cache Storage</span>
+                <span id="diag-storage" class="diag-value">—</span>
+              </div>
+            </div>
+            <button id="btn-refresh-diag" class="btn btn-ghost">Refresh System Checks</button>
           </div>
         </section>
 
         <!-- Logs -->
         <section class="card">
-          <h2 class="card-title">Activity Log</h2>
-          <div id="logs" class="log-container">
-            <div class="log-empty">No log entries</div>
+          <div class="card-header">
+            <h3 class="card-title">Live Extension Activity Log</h3>
+            <p class="card-desc">History log of completed prompt submissions, file downscaling operations, and warnings.</p>
           </div>
-          <div class="log-actions">
-            <button id="btn-refresh-logs" class="btn btn-ghost">Refresh</button>
-            <button id="btn-clear-logs" class="btn btn-danger-ghost">Clear Logs</button>
+          <div class="card-body">
+            <div id="logs" class="log-container">
+              <div class="log-empty">No log entries</div>
+            </div>
+            <div class="log-actions">
+              <button id="btn-refresh-logs" class="btn btn-ghost">Refresh Logs</button>
+              <button id="btn-clear-logs" class="btn btn-danger-ghost">Clear Logs</button>
+            </div>
           </div>
         </section>
-      </div>
-
-      <!-- Save -->
-      <div class="save-bar">
-        <button id="btn-save" class="btn btn-primary">Save Settings</button>
-        <span id="save-status" class="save-status"></span>
       </div>
     </main>
   </div>

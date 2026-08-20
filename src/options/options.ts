@@ -158,6 +158,23 @@ $<HTMLButtonElement>('btn-clear-logs').addEventListener('click', async () => {
   logsContainer.innerHTML = '<div class="log-empty">No log entries</div>';
 });
 
+// Tab switching logic for the sidebar menu
+const navItems = document.querySelectorAll('.nav-item');
+const tabs = document.querySelectorAll('.tab-content');
+
+navItems.forEach((btn) => {
+  btn.addEventListener('click', () => {
+    navItems.forEach((b) => b.classList.remove('active'));
+    tabs.forEach((t) => t.classList.remove('active'));
+
+    btn.classList.add('active');
+    const targetTab = btn.getAttribute('data-tab');
+    if (targetTab) {
+      document.getElementById(targetTab)?.classList.add('active');
+    }
+  });
+});
+
 // ─── Init ──────────────────────────────────────────────────────
 
 loadSettings();
