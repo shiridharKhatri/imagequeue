@@ -13,7 +13,7 @@ export const GEMINI_BASE_URL = 'https://gemini.google.com';
 // ─── Queue ─────────────────────────────────────────────────────
 
 export const MAX_RETRIES_DEFAULT = 3;
-export const GENERATION_TIMEOUT_MS = 180_000; // 3 minutes
+export const GENERATION_TIMEOUT_MS = 300_000; // 5 minutes
 export const QUEUE_RECOVERY_ALARM = 'image-queue-recovery';
 export const QUEUE_RECOVERY_INTERVAL_MIN = 1; // chrome.alarms minimum
 
