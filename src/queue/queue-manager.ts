@@ -149,6 +149,21 @@ export class QueueManager {
    */
   async resume(): Promise<void> {
     if (this.queue.state !== 'paused' && this.queue.state !== 'error') return;
+
+    // Reset generating items that are no longer active in the tab
+    for (const item of this.queue.items) {
+      if (item.status === 'generating') {
+        let active = false;
+        if (this.provider && typeof this.provider.isCurrentlyGenerating === 'function') {
+          active = await this.provider.isCurrentlyGenerating(item.id);
+        }
+        if (!active) {
+          logger.warn('Resetting inactive generating item to queued on resume', { itemId: item.id });
+          item.status = 'queued';
+        }
+      }
+    }
+
     this.queue.state = 'running';
     this.queue.updatedAt = Date.now();
     await this.persist();
