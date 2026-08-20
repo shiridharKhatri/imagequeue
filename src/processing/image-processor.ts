@@ -298,6 +298,56 @@ export async function removeBackground(inputBlob: Blob): Promise<Blob> {
   return canvas.convertToBlob({ type: 'image/png' });
 }
 
+/**
+ * Crop transparent borders from a transparent image blob.
+ * Shrinks canvas to fit only the non-transparent pixels.
+ */
+export async function cropTransparent(inputBlob: Blob): Promise<Blob> {
+  const bitmap = await createImageBitmap(inputBlob);
+  const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+  const ctx = canvas.getContext('2d')!;
+  ctx.drawImage(bitmap, 0, 0);
+  bitmap.close();
+
+  const width = canvas.width;
+  const height = canvas.height;
+  const imageData = ctx.getImageData(0, 0, width, height);
+  const data = imageData.data;
+
+  let minX = width;
+  let maxX = -1;
+  let minY = height;
+  let maxY = -1;
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const alpha = data[(y * width + x) * 4 + 3];
+      if (alpha > 5) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+
+  // If the image is completely transparent, return the original
+  if (maxX === -1 || maxY === -1) {
+    return inputBlob;
+  }
+
+  const cropW = maxX - minX + 1;
+  const cropH = maxY - minY + 1;
+
+  const croppedCanvas = new OffscreenCanvas(cropW, cropH);
+  const croppedCtx = croppedCanvas.getContext('2d')!;
+  
+  // Draw the cropped region from the original canvas
+  croppedCtx.drawImage(canvas, minX, minY, cropW, cropH, 0, 0, cropW, cropH);
+
+  return croppedCanvas.convertToBlob({ type: 'image/png' });
+}
+
 function getPixel(data: Uint8ClampedArray, x: number, y: number, width: number) {
   const idx = (y * width + x) * 4;
   return {

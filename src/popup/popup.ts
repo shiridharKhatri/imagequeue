@@ -14,7 +14,7 @@ import { computeQueueStats, STATUS_DISPLAY } from '../queue/queue-types';
 import { imageStore } from '../storage/image-store';
 import { settingsStorage } from '../storage/storage';
 import { uploadToWordPressMedia, blobToBase64 } from '../api/wp-uploader';
-import { processImage, removeBackground } from '../processing/image-processor';
+import { processImage, removeBackground, cropTransparent } from '../processing/image-processor';
 
 // ─── DOM References ────────────────────────────────────────────
 
@@ -435,6 +435,10 @@ function showBatchView(queue: QueueData): void {
               <input type="checkbox" class="batch-bg-remove-check" data-id="${item.id}" ${isFeatureImg ? 'checked' : ''} style="width:12px; height:12px; accent-color:#8b5cf6; cursor:pointer;" />
               <span>BG✂️</span>
             </label>
+            <label class="batch-crop-toggle" title="Auto-crop transparent borders" style="display:flex; align-items:center; gap:3px; font-size:9px; color:var(--text-muted); cursor:pointer; flex-shrink:0; margin-left:4px; padding:2px 6px; border-radius:4px; border:1px solid rgba(255,255,255,0.08); background:${isFeatureImg ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.03)'};">
+              <input type="checkbox" class="batch-crop-check" data-id="${item.id}" ${isFeatureImg ? 'checked' : ''} style="width:12px; height:12px; accent-color:#3b82f6; cursor:pointer;" />
+              <span>Crop✂️</span>
+            </label>
           </div>
         </div>
       </div>
@@ -448,67 +452,73 @@ function showBatchView(queue: QueueData): void {
       updateFilenamePreview();
     });
 
-    // BG Remove toggle listener — update ext preview, label style, and live thumbnail preview
     const bgCheck = el.querySelector('.batch-bg-remove-check') as HTMLInputElement;
-    if (bgCheck) {
-      bgCheck.addEventListener('change', async () => {
-        const extPreview = el.querySelector('.batch-image-ext-preview');
-        const label = el.querySelector('.batch-bg-remove-toggle') as HTMLElement;
-        const container = el.querySelector('.batch-image-thumbnail-container') as HTMLElement;
-        
-        if (bgCheck.checked) {
-          if (extPreview) extPreview.textContent = '.png';
-          if (label) label.style.background = 'rgba(139,92,246,0.15)';
-          
-          // Live preview: apply BG removal to thumbnail
-          const storedImage = await imageStore.get(item.id);
-          if (storedImage && container) {
-            const bgRemovedBlob = await removeBackground(storedImage.blob);
-            const bgUrl = URL.createObjectURL(bgRemovedBlob);
-            container.innerHTML = `<img src="${bgUrl}" class="batch-image-thumbnail" style="width:100%; height:100%; object-fit:cover; border-radius:4px;" />`;
-            container.style.background = 'repeating-conic-gradient(#808080 0% 25%, #fff 0% 50%) 50% / 10px 10px';
-          }
-        } else {
-          // Revert to current format selection
-          const formatInput = document.querySelector('input[name="format"]:checked') as HTMLInputElement;
-          const ext = formatInput?.value || 'webp';
-          if (extPreview) extPreview.textContent = `.${ext}`;
-          if (label) label.style.background = 'rgba(255,255,255,0.03)';
-          
-          // Revert thumbnail to original
-          const storedImage = await imageStore.get(item.id);
-          if (storedImage && container) {
-            const origUrl = URL.createObjectURL(storedImage.blob);
-            container.innerHTML = `<img src="${origUrl}" class="batch-image-thumbnail" style="width:100%; height:100%; object-fit:cover; border-radius:4px;" />`;
-            container.style.background = 'none';
-          }
+    const cropCheck = el.querySelector('.batch-crop-check') as HTMLInputElement;
+
+    const updateThumbnailPreview = async () => {
+      const storedImage = await imageStore.get(item.id);
+      if (!storedImage) return;
+
+      const container = el.querySelector('.batch-image-thumbnail-container') as HTMLElement;
+      if (!container) return;
+
+      const isBg = bgCheck?.checked || false;
+      const isCrop = cropCheck?.checked || false;
+
+      const bgLabel = el.querySelector('.batch-bg-remove-toggle') as HTMLElement;
+      const cropLabel = el.querySelector('.batch-crop-toggle') as HTMLElement;
+
+      if (bgLabel) bgLabel.style.background = isBg ? 'rgba(139,92,246,0.15)' : 'rgba(255,255,255,0.03)';
+      if (cropLabel) cropLabel.style.background = isCrop ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.03)';
+
+      let blob = storedImage.blob;
+      if (isBg) {
+        try {
+          blob = await removeBackground(blob);
+        } catch (e) {
+          console.error('BG removal failed:', e);
         }
-      });
-    }
+      }
+      if (isCrop) {
+        try {
+          blob = await cropTransparent(blob);
+        } catch (e) {
+          console.error('Crop transparent failed:', e);
+        }
+      }
+
+      const url = URL.createObjectURL(blob);
+      container.innerHTML = `<img src="${url}" class="batch-image-thumbnail" style="width:100%; height:100%; object-fit:contain; border-radius:4px;" />`;
+      if (isBg || isCrop) {
+        container.style.background = 'repeating-conic-gradient(#808080 0% 25%, #fff 0% 50%) 50% / 10px 10px';
+      } else {
+        container.style.background = 'none';
+      }
+
+      // Update extension preview
+      const extPreview = el.querySelector('.batch-image-ext-preview');
+      if (extPreview) {
+        if (isBg || isCrop) {
+          extPreview.textContent = '.png';
+        } else {
+          const formatInput = document.querySelector('input[name="format"]:checked') as HTMLInputElement;
+          extPreview.textContent = `.${formatInput?.value || 'webp'}`;
+        }
+      }
+    };
+
+    if (bgCheck) bgCheck.addEventListener('change', updateThumbnailPreview);
+    if (cropCheck) cropCheck.addEventListener('change', updateThumbnailPreview);
 
     // Asynchronously load thumbnail preview from IndexedDB imageStore
-    imageStore.get(item.id).then(async (storedImage) => {
-      if (storedImage) {
-        const container = el.querySelector('.batch-image-thumbnail-container') as HTMLElement;
-        if (container) {
-          // If BG remove is auto-checked (feature image), show BG-removed preview
-          if (isFeatureImg) {
-            const bgRemovedBlob = await removeBackground(storedImage.blob);
-            const bgUrl = URL.createObjectURL(bgRemovedBlob);
-            container.innerHTML = `<img src="${bgUrl}" class="batch-image-thumbnail" style="width:100%; height:100%; object-fit:cover; border-radius:4px;" />`;
-            container.style.background = 'repeating-conic-gradient(#808080 0% 25%, #fff 0% 50%) 50% / 10px 10px';
-          } else {
-            const thumbUrl = URL.createObjectURL(storedImage.blob);
-            container.innerHTML = `<img src="${thumbUrl}" class="batch-image-thumbnail" style="width:100%; height:100%; object-fit:cover; border-radius:4px;" />`;
-          }
-          
-          // Click thumbnail to open fullscreen lightbox
-          container.style.cursor = 'zoom-in';
-          container.addEventListener('click', () => {
-            const thumbImg = container.querySelector('.batch-image-thumbnail') as HTMLImageElement;
-            if (thumbImg) openLightbox(thumbImg.src);
-          });
-        }
+    updateThumbnailPreview().then(() => {
+      const container = el.querySelector('.batch-image-thumbnail-container') as HTMLElement;
+      if (container) {
+        container.style.cursor = 'zoom-in';
+        container.addEventListener('click', () => {
+          const thumbImg = container.querySelector('.batch-image-thumbnail') as HTMLImageElement;
+          if (thumbImg) openLightbox(thumbImg.src);
+        });
       }
     });
 
@@ -788,11 +798,17 @@ async function handleUploadWP(): Promise<void> {
       const imageOptions = isFeatureImage ? { ...options, resolution: '300x300' } : options;
       let processedBlob = await processImage(storedImage.blob, imageOptions);
 
-      // Check if BG Remove toggle is checked for this card
+      // Check if BG Remove and Crop toggles are checked for this card
       const bgCheck = batchImageList.querySelector(`.batch-bg-remove-check[data-id="${item.id}"]`) as HTMLInputElement | null;
+      const cropCheck = batchImageList.querySelector(`.batch-crop-check[data-id="${item.id}"]`) as HTMLInputElement | null;
       const isBgRemove = bgCheck?.checked || false;
+      const isCrop = cropCheck?.checked || false;
+
       if (isBgRemove) {
         processedBlob = await removeBackground(processedBlob);
+      }
+      if (isCrop) {
+        processedBlob = await cropTransparent(processedBlob);
       }
 
       // Convert processed blob to base64 data URL
@@ -801,7 +817,7 @@ async function handleUploadWP(): Promise<void> {
       // Suffix/filename logic
       const suffix = getIntelligentSuffix(item.prompt, i);
       const customName = (options.customFilenames && options.customFilenames[item.id]) || `${prefix}-${suffix}`;
-      const fileExt = isBgRemove ? 'png' : options.format;
+      const fileExt = (isBgRemove || isCrop) ? 'png' : options.format;
       const filename = `${customName}.${fileExt}`;
 
       const itemMetadata = (options.customMetadata && options.customMetadata[item.id]) || options.metadata;
