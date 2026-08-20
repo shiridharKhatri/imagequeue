@@ -304,34 +304,6 @@ function extractBestImageUrl(messageElement: Element): string | null {
     }
   }
 
-  // STRATEGY 2 (FALLBACK): Search the entire document from bottom to top for the latest generated image.
-  logger.info('Gemini scoped message search failed. Running document-wide chronological search fallback.');
-
-  const allDocImgs = Array.from(document.querySelectorAll('img'));
-  for (let i = allDocImgs.length - 1; i >= 0; i--) {
-    const img = allDocImgs[i];
-    const src = img.src || '';
-    if (src.includes('avatar') || src.includes('profile') || src.includes('icon')) continue;
-    if (img.closest('[class*="avatar"]') || img.closest('[class*="profile"]')) continue;
-
-    const candidates = [
-      img.src,
-      img.getAttribute('data-src'),
-      img.getAttribute('srcset'),
-      img.getAttribute('data-original-src'),
-      img.getAttribute('data-image-src')
-    ];
-    for (const rawSrc of candidates) {
-      if (rawSrc) {
-        const cleanSrc = parseSrcset(rawSrc);
-        if (cleanSrc && isImageUrl(cleanSrc)) {
-          logger.info('Found Gemini generated image via document-wide img search', { url: cleanSrc.slice(0, 80) });
-          return cleanSrc;
-        }
-      }
-    }
-  }
-
   return null;
 }
 

@@ -440,43 +440,10 @@ function extractBestImageUrl(messageElement: Element): string | null {
     }
   }
 
-  // STRATEGY 4 (FALLBACK): Search the entire document from bottom to top for the latest DALL-E image.
-  // This is a bulletproof fallback if ChatGPT wraps the image differently or outside the expected assistant message container.
-  logger.info('Scoped message search failed. Running document-wide chronological search fallback.');
-  
-  const allDocLinks = Array.from(document.querySelectorAll('a[download]'));
-  for (let i = allDocLinks.length - 1; i >= 0; i--) {
-    const link = allDocLinks[i] as HTMLAnchorElement;
-    const href = link.href;
-    if (href && isImageUrl(href)) {
-      logger.info('Found generated image via document-wide download link search', { url: href.slice(0, 80) });
-      return href;
-    }
-  }
-
-  const allDocImgs = Array.from(document.querySelectorAll('img'));
-  for (let i = allDocImgs.length - 1; i >= 0; i--) {
-    const img = allDocImgs[i];
-    const src = img.src || '';
-    if (src.includes('avatar') || src.includes('profile') || src.includes('icon')) continue;
-    if (img.closest('[class*="avatar"]') || img.closest('[class*="profile"]')) continue;
-    
-    const candidates = [
-      img.src,
-      img.getAttribute('data-src'),
-      img.getAttribute('srcset'),
-      img.getAttribute('data-original-src'),
-      img.getAttribute('data-image-src')
-    ];
-    for (const rawSrc of candidates) {
-      if (rawSrc) {
-        const cleanSrc = parseSrcset(rawSrc);
-        if (cleanSrc && isImageUrl(cleanSrc)) {
-          logger.info('Found generated image via document-wide img search', { url: cleanSrc.slice(0, 80) });
-          return cleanSrc;
-        }
-      }
-    }
+  // Diagnostics: if we found images but none matched, log their src attributes!
+  if (allImgs.length > 0) {
+    const srcs = Array.from(allImgs).map(img => (img as HTMLImageElement).src || 'no-src');
+    logger.info('Found image elements but none matched filters', { count: allImgs.length, srcs });
   }
 
   return null;
