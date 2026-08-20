@@ -490,6 +490,27 @@ function hasPotentialDalleImage(messageElement: Element): boolean {
  * Check if the assistant message is still actively generating/loading an image.
  */
 function isStillCreating(messageElement: Element): boolean {
+  // Check if there is an image placeholder container but no actual loaded image yet
+  const hasImageContainer = messageElement.querySelector('[id^="image-"]') || messageElement.querySelector('[class*="imagegen-image"]');
+  if (hasImageContainer) {
+    const img = messageElement.querySelector('img');
+    if (!img) {
+      // Container exists but no image element has mounted yet (blurred loading state)
+      return true;
+    }
+    
+    // If the image element exists but its src is empty or a placeholder, keep waiting
+    const src = img.src || img.getAttribute('data-src') || '';
+    if (!src || (src.startsWith('data:') && src.length < 1000)) {
+      return true;
+    }
+  }
+
+  // Check for blurred elements (DALL-E loading card placeholder)
+  if (messageElement.querySelector('[style*="blur"]')) {
+    return true;
+  }
+
   const text = messageElement.textContent?.toLowerCase() || '';
   
   // Check for common generation keywords in text
