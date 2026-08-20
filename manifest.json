@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "Image Queue",
+  "version": "1.0.0",
+  "description": "Queue image prompts for ChatGPT, generate sequentially in the background, process locally, and download as ZIP.",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "permissions": [
+    "storage",
+    "downloads",
+    "tabs",
+    "activeTab",
+    "offscreen",
+    "alarms",
+    "scripting",
+    "unlimitedStorage"
+  ],
+  "host_permissions": [
+    "*://chatgpt.com/*",
+    "*://*.oaiusercontent.com/*",
+    "*://gemini.google.com/*",
+    "*://*.googleusercontent.com/*"
+  ],
+  "background": {
+    "service_worker": "src/background/service-worker.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "src/popup/popup.html",
+    "default_title": "Image Queue"
+  },
+  "options_page": "src/options/options.html",
+  "content_scripts": [
+    {
+      "matches": [
+        "*://chatgpt.com/*",
+        "*://gemini.google.com/*"
+      ],
+      "js": ["src/content/content-main.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

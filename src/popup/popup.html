@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Image Queue</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-brand">
+        <div class="logo">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- Back card -->
+            <rect x="7" y="7" width="13" height="13" rx="2" fill="none" stroke="#3b82f6" stroke-width="1.5" opacity="0.4"/>
+            <!-- Middle card -->
+            <rect x="5" y="5" width="13" height="13" rx="2" fill="none" stroke="#3b82f6" stroke-width="1.5" opacity="0.7"/>
+            <!-- Front card -->
+            <rect x="2" y="2" width="14" height="14" rx="3" fill="#3b82f6"/>
+            <circle cx="11.5" cy="5.5" r="1.2" fill="white"/>
+            <path d="M4 12l2.5-2.5 3 3 1.5-1.5 2 2" stroke="white" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <h1 class="header-title">Image Queue</h1>
+      </div>
+      <button id="btn-settings" class="icon-btn" title="Settings" aria-label="Settings">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+        </svg>
+      </button>
+    </header>
+
+    <!-- Connection Status Banner -->
+    <div id="connection-banner" class="banner banner-warning" style="display:none">
+      <span id="connection-text">ChatGPT tab not found</span>
+      <button id="btn-open-chatgpt" class="banner-btn">Open ChatGPT</button>
+    </div>
+
+    <!-- View: Input Prompts -->
+    <section id="view-input" class="view">
+      <div class="layout-two-col">
+        <!-- Left Column: Controls & Configuration -->
+        <div class="col-left">
+          <div class="field" style="margin-bottom:var(--space-xs);">
+            <label for="provider-select" class="field-label">AI Generation Provider</label>
+            <select id="provider-select" class="select" style="width:100%;">
+              <option value="chatgpt" selected>ChatGPT (DALL-E 3)</option>
+              <option value="gemini">Gemini (Imagen 3)</option>
+            </select>
+          </div>
+
+          <div class="field" id="product-name-field" style="margin-bottom:var(--space-xs);">
+            <label for="product-name-input" class="field-label">Product Name / Label</label>
+            <input type="text" id="product-name-input" class="input" placeholder="e.g. Collagen Powder" />
+          </div>
+
+          <div class="field" id="reference-image-field" style="margin-bottom:var(--space-xs);">
+            <label for="reference-image-input" class="field-label">Reference Image (Optional)</label>
+            <div class="file-upload-wrapper" style="display:flex; gap:var(--space-sm); align-items:center; width:100%;">
+              <input type="file" id="reference-image-input" accept="image/*" style="display:none;" />
+              <button id="btn-upload-ref" class="btn btn-secondary" style="flex:1; padding:var(--space-sm); font-size:var(--font-sm); display:flex; align-items:center; justify-content:center; gap:var(--space-xs); height:34px; min-height:unset;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                Choose Image
+              </button>
+              <span id="ref-image-status" style="font-size:var(--font-xs); color:var(--text-muted); text-overflow:ellipsis; overflow:hidden; white-space:nowrap; max-width:140px;">No image selected</span>
+              <button id="btn-clear-ref" class="btn btn-danger-ghost" style="display:none; padding:4px 8px; font-size:var(--font-xs); height:34px; line-height:1; min-height:unset;">Clear</button>
+            </div>
+          </div>
+
+          <div class="field" style="margin-bottom:var(--space-md);">
+            <label for="article-name" class="field-label">Article Name</label>
+            <input type="text" id="article-name" class="input" placeholder="my-article" />
+          </div>
+
+          <button id="btn-add-prompt" class="btn btn-ghost" style="margin-bottom:var(--space-sm);">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Prompt
+          </button>
+
+          <button id="btn-generate" class="btn btn-primary btn-full">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            Generate All
+          </button>
+        </div>
+
+        <!-- Right Column: Prompts Feed -->
+        <div class="col-right">
+          <div id="prompts-container" class="prompts-container">
+            <!-- Prompt textareas injected by JS -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- View: Queue Progress -->
+    <section id="view-queue" class="view" style="display:none">
+      <h2 class="section-title" style="margin-bottom:var(--space-md);">Queue Progress</h2>
+      
+      <div class="layout-two-col">
+        <!-- Left Column: Status & Controls -->
+        <div class="col-left">
+          <div class="queue-meta" style="display:flex; flex-direction:column; gap:4px; margin-bottom:var(--space-xs);">
+            <span id="queue-article-name" class="meta-tag" style="align-self:flex-start;"></span>
+            <span id="queue-progress-text" class="meta-progress" style="font-size:var(--font-sm); font-weight:600; color:var(--text-secondary);"></span>
+          </div>
+
+          <div class="progress-bar-container" style="width:100%; height:8px; background:var(--bg-secondary); border-radius:4px; overflow:hidden; margin-bottom:var(--space-md);">
+            <div id="progress-bar" class="progress-bar" style="width:0%; height:100%; background:var(--accent); border-radius:4px; transition:width 0.3s;"></div>
+          </div>
+
+          <div class="queue-controls" style="display:flex; flex-direction:column; gap:var(--space-sm); width:100%;">
+            <button id="btn-pause" class="btn btn-secondary btn-full">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+              Pause
+            </button>
+            <button id="btn-resume" class="btn btn-secondary btn-full" style="display:none">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              Resume
+            </button>
+            <button id="btn-cancel" class="btn btn-danger-ghost btn-full">
+              Cancel
+            </button>
+            <button id="btn-back-input" class="btn btn-ghost btn-full" style="display:none">
+              Back to Input
+            </button>
+          </div>
+        </div>
+
+        <!-- Right Column: Queue Items List -->
+        <div class="col-right">
+          <div id="queue-items" class="queue-items" style="flex:1; width:100%;">
+            <!-- Queue items injected by JS -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- View: Batch Processing -->
+    <section id="view-batch" class="view" style="display:none">
+      <h2 class="section-title" style="margin-bottom:var(--space-md);">Batch Processing</h2>
+
+      <div class="layout-two-col">
+        <!-- Left Column: Controls & Presets -->
+        <div class="col-left" style="gap:var(--space-md);">
+          
+          <!-- Card 1: Format & Quality Settings -->
+          <div class="settings-card">
+            <div class="settings-card-title">Format & Compression</div>
+            <div class="field">
+              <label class="field-label" style="font-size:9px; color:var(--text-muted); margin-bottom:4px;">Output Format</label>
+              <div class="radio-group" id="format-group" style="display:grid; grid-template-columns:repeat(3, 1fr); gap:var(--space-xs);">
+                <label class="radio-option"><input type="radio" name="format" value="def"><span>DEF</span></label>
+                <label class="radio-option"><input type="radio" name="format" value="jpg"><span>JPEG</span></label>
+                <label class="radio-option"><input type="radio" name="format" value="png"><span>PNG</span></label>
+                <label class="radio-option selected"><input type="radio" name="format" value="webp" checked><span>WebP</span></label>
+                <label class="radio-option"><input type="radio" name="format" value="avif"><span>AVIF</span></label>
+                <label class="radio-option"><input type="radio" name="format" value="tiff"><span>TIFF</span></label>
+              </div>
+            </div>
+
+            <div style="display:flex; gap:var(--space-sm); width:100%;">
+              <div class="field" style="flex:1; min-width:0;">
+                <label for="quality" class="field-label" style="font-size:9px; color:var(--text-muted); margin-bottom:2px;">Quality <span id="quality-value" class="meta-tag">90</span></label>
+                <input type="range" id="quality" class="range-input" min="10" max="100" value="90" step="5" style="margin-top: 6px;" />
+              </div>
+              <div class="field" style="flex:1; min-width:0;">
+                <label for="target-size" class="field-label" style="font-size:9px; color:var(--text-muted); margin-bottom:2px;">Target Size <span class="meta-tag">KB</span></label>
+                <input type="number" id="target-size" class="input" placeholder="e.g. 500" min="0" style="height:32px; font-size:var(--font-sm);" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 2: Sizing & Naming Settings -->
+          <div class="settings-card">
+            <div class="settings-card-title">Dimensions & Filename</div>
+            <div style="display:flex; flex-direction:column; gap:var(--space-sm); width:100%;">
+              <div class="field" style="width:100%;">
+                <label for="resolution" class="field-label" style="font-size:9px; color:var(--text-muted); margin-bottom:2px;">Target Resolution</label>
+                <select id="resolution" class="select" style="width:100%;">
+                  <option value="0" selected>Original</option>
+                  <option value="1200x628">1200x628 (WordPress Widescreen)</option>
+                  <option value="1200x1200">1200x1200 (Square)</option>
+                  <option value="1920x1080">1920x1080 (Widescreen)</option>
+                  <option value="1080x1920">1080x1920 (Vertical Story)</option>
+                  <option value="1920">1920px (Width Limit)</option>
+                  <option value="1600">1600px (Width Limit)</option>
+                  <option value="1200">1200px (Width Limit)</option>
+                  <option value="1000">1000px (Width Limit)</option>
+                  <option value="800">800px (Width Limit)</option>
+                </select>
+              </div>
+              <div style="display:flex; gap:var(--space-sm); width:100%;">
+                <div class="field" style="flex:1; min-width:0;">
+                  <label for="filename-prefix" class="field-label" style="font-size:9px; color:var(--text-muted); margin-bottom:2px;">Filename Prefix</label>
+                  <input type="text" id="filename-prefix" class="input" placeholder="article-name" />
+                </div>
+                <div class="field" style="flex:1; min-width:0;">
+                  <label for="author-name" class="field-label" style="font-size:9px; color:var(--text-muted); margin-bottom:2px;">Author Name</label>
+                  <input type="text" id="author-name" class="input" placeholder="Author" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 3: Camera Metadata Settings -->
+          <div class="exif-section" style="margin-top:0;">
+            <div class="exif-section-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--space-xs); border-bottom: 1px dashed rgba(255,255,255,0.06); padding-bottom: 6px;">
+              <div class="settings-card-title" style="border:none; margin-bottom:0; padding-bottom:0;">Camera Metadata</div>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <span style="font-size:var(--font-xs); color:var(--text-secondary);">Embed</span>
+                <label class="switch-container">
+                  <input type="checkbox" id="exif-toggle" checked />
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+            
+            <div style="display:flex; gap:var(--space-sm); align-items:center; margin-bottom:var(--space-sm);">
+              <button id="btn-random-exif" style="flex:1; display:flex; align-items:center; justify-content:center; gap:4px; padding:4px 10px; font-size:10.5px; height:24px; border-radius:12px; border:1px solid rgba(16, 163, 127, 0.25); background:rgba(16, 163, 127, 0.08); color:var(--accent); cursor:pointer; font-weight:600; transition:background-color 0.2s, border-color 0.2s; white-space:nowrap; min-height:unset;">
+                🎲 Random Device
+              </button>
+              <button id="btn-clear-exif" style="flex:1; display:flex; align-items:center; justify-content:center; gap:4px; padding:4px 10px; font-size:10.5px; height:24px; border-radius:12px; border:1px solid rgba(239, 68, 68, 0.25); background:rgba(239, 68, 68, 0.08); color:#f87171; cursor:pointer; font-weight:600; transition:background-color 0.2s, border-color 0.2s; white-space:nowrap; min-height:unset;">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                Delete Bulk
+              </button>
+            </div>
+            <div id="exif-fields-container">
+              <div class="field">
+                <label for="exif-device-select" class="field-label">Device Preset</label>
+                <select id="exif-device-select" class="select" style="width:100%;">
+                  <!-- Grouped options populated dynamically by JS -->
+                </select>
+              </div>
+              
+              <div style="display:flex; justify-content:center; margin-top:8px;">
+                <button id="btn-advanced-exif-toggle" type="button" style="background:none; border:none; color:var(--text-muted); font-size:10px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:2px;">
+                  <svg id="advanced-exif-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="transition:transform 0.2s;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  Advanced Camera & GPS Details
+                </button>
+              </div>
+              
+              <div id="advanced-exif-fields" style="display:none; flex-direction:column; gap:6px; margin-top:8px; padding-top:8px; border-top:1px dashed rgba(255,255,255,0.05);">
+                <div style="display:flex; gap:6px;">
+                  <div style="flex:1;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+                      <label for="exif-make" class="field-label" style="font-size:9px; margin-bottom:0; color:var(--text-muted);">Make</label>
+                      <button type="button" class="btn-clear-field" data-target="exif-make" title="Clear Make from all">
+                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                      </button>
+                    </div>
+                    <input type="text" id="exif-make" class="input" placeholder="e.g. Google" style="height:22px; font-size:10px; padding:2px 6px;" />
+                  </div>
+                  <div style="flex:1;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+                      <label for="exif-model" class="field-label" style="font-size:9px; margin-bottom:0; color:var(--text-muted);">Model</label>
+                      <button type="button" class="btn-clear-field" data-target="exif-model" title="Clear Model from all">
+                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                      </button>
+                    </div>
+                    <input type="text" id="exif-model" class="input" placeholder="e.g. Pixel 8 Pro" style="height:22px; font-size:10px; padding:2px 6px;" />
+                  </div>
+                </div>
+                <div style="display:flex; gap:6px;">
+                  <div style="flex:1;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+                      <label for="exif-lens" class="field-label" style="font-size:9px; margin-bottom:0; color:var(--text-muted);">Lens Model</label>
+                      <button type="button" class="btn-clear-field" data-target="exif-lens" title="Clear Lens Model from all">
+                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                      </button>
+                    </div>
+                    <input type="text" id="exif-lens" class="input" placeholder="e.g. Pixel 8 Pro back camera..." style="height:22px; font-size:10px; padding:2px 6px;" />
+                  </div>
+                  <div style="flex:1;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+                      <label for="exif-software" class="field-label" style="font-size:9px; margin-bottom:0; color:var(--text-muted);">Software</label>
+                      <button type="button" class="btn-clear-field" data-target="exif-software" title="Clear Software from all">
+                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                      </button>
+                    </div>
+                    <input type="text" id="exif-software" class="input" placeholder="e.g. Android 14" style="height:22px; font-size:10px; padding:2px 6px;" />
+                  </div>
+                </div>
+                <div style="display:flex; gap:6px;">
+                  <div style="flex:1;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+                      <label for="exif-copyright" class="field-label" style="font-size:9px; margin-bottom:0; color:var(--text-muted);">Copyright</label>
+                      <button type="button" class="btn-clear-field" data-target="exif-copyright" title="Clear Copyright from all">
+                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                      </button>
+                    </div>
+                    <input type="text" id="exif-copyright" class="input" placeholder="e.g. © 2026 Marcus Chen" style="height:22px; font-size:10px; padding:2px 6px;" />
+                  </div>
+                  <div style="flex:1;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+                      <label for="exif-date" class="field-label" style="font-size:9px; margin-bottom:0; color:var(--text-muted);">Date Taken</label>
+                      <button type="button" class="btn-clear-field" data-target="exif-date" title="Clear Date Taken from all">
+                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                      </button>
+                    </div>
+                    <input type="text" id="exif-date" class="input" placeholder="YYYY:MM:DD HH:MM:SS" style="height:22px; font-size:10px; padding:2px 6px;" />
+                  </div>
+                </div>
+                <div style="display:flex; gap:6px;">
+                  <div style="flex:1;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+                      <label for="exif-country" class="field-label" style="font-size:9px; margin-bottom:0; color:var(--text-muted);">Country</label>
+                      <button type="button" class="btn-clear-field" data-target="exif-country" title="Clear Country from all">
+                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                      </button>
+                    </div>
+                    <input type="text" id="exif-country" class="input" placeholder="United States" style="height:22px; font-size:10px; padding:2px 6px;" />
+                  </div>
+                  <div style="flex:1;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+                      <label for="exif-state" class="field-label" style="font-size:9px; margin-bottom:0; color:var(--text-muted);">State</label>
+                      <button type="button" class="btn-clear-field" data-target="exif-state" title="Clear State from all">
+                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                      </button>
+                    </div>
+                    <input type="text" id="exif-state" class="input" placeholder="Florida" style="height:22px; font-size:10px; padding:2px 6px;" />
+                  </div>
+                  <div style="flex:1;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+                      <label for="exif-city" class="field-label" style="font-size:9px; margin-bottom:0; color:var(--text-muted);">City</label>
+                      <button type="button" class="btn-clear-field" data-target="exif-city" title="Clear City from all">
+                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                      </button>
+                    </div>
+                    <input type="text" id="exif-city" class="input" placeholder="Tampa" style="height:22px; font-size:10px; padding:2px 6px;" />
+                  </div>
+                </div>
+                <div style="display:flex; gap:6px;">
+                  <div style="flex:1;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+                      <label for="exif-subloc" class="field-label" style="font-size:9px; margin-bottom:0; color:var(--text-muted);">Sub-Location</label>
+                      <button type="button" class="btn-clear-field" data-target="exif-subloc" title="Clear Sub-Location from all">
+                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                      </button>
+                    </div>
+                    <input type="text" id="exif-subloc" class="input" placeholder="Ybor City" style="height:22px; font-size:10px; padding:2px 6px;" />
+                  </div>
+                  <div style="flex:1;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+                      <label for="exif-lat" class="field-label" style="font-size:9px; margin-bottom:0; color:var(--text-muted);">GPS Lat</label>
+                      <button type="button" class="btn-clear-field" data-target="exif-lat" title="Clear GPS Latitude from all">
+                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                      </button>
+                    </div>
+                    <input type="text" id="exif-lat" class="input" placeholder="27.9506" style="height:22px; font-size:10px; padding:2px 6px;" />
+                  </div>
+                  <div style="flex:1;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+                      <label for="exif-lon" class="field-label" style="font-size:9px; margin-bottom:0; color:var(--text-muted);">GPS Lon</label>
+                      <button type="button" class="btn-clear-field" data-target="exif-lon" title="Clear GPS Longitude from all">
+                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                      </button>
+                    </div>
+                    <input type="text" id="exif-lon" class="input" placeholder="-82.4572" style="height:22px; font-size:10px; padding:2px 6px;" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:var(--space-xs); margin-top:var(--space-xs);">
+            <div class="filename-preview" id="filename-preview" style="margin-bottom:2px;">
+              <!-- Preview injected by JS -->
+            </div>
+            <button id="btn-download-zip" class="btn btn-primary btn-full">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Download ZIP
+            </button>
+            <button id="btn-upload-wp" class="btn btn-primary btn-full" style="background:#21759b; box-shadow:0 4px 12px rgba(33, 117, 155, 0.2);">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              Send to WordPress
+            </button>
+            <div style="display:flex; gap:var(--space-sm);">
+              <button id="btn-download-individual" class="btn btn-ghost btn-full" style="flex:1; font-size:11px; padding:6px var(--space-sm); height:30px; min-height:unset;">
+                Individual
+              </button>
+              <button id="btn-new-batch" class="btn btn-ghost btn-full" style="flex:1; font-size:11px; padding:6px var(--space-sm); height:30px; min-height:unset;">
+                New Batch
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column: Image Cards Feed -->
+        <div class="col-right">
+          <div class="batch-images" id="batch-image-list" style="flex:1; width:100%;">
+            <!-- Image list injected by JS -->
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script type="module" src="popup.ts"></script>
+</body>
+</html>
