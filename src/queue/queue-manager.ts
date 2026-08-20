@@ -342,6 +342,12 @@ export class QueueManager {
     // Guard: don't start multiple concurrent processes
     if (this.processing) return;
 
+    // Guard: check if an item is already actively generating to prevent parallel loops
+    if (this.queue.items.some((i) => i.status === 'generating')) {
+      logger.debug('processNext guard: An item is already generating. Skipping execution.');
+      return;
+    }
+
     // Guard: check state
     if (this.queue.state !== 'running') return;
 
@@ -380,11 +386,16 @@ export class QueueManager {
       }
 
       // Mark as generating
-      nextItem.status = 'generating';
-      nextItem.error = undefined; // Clear previous retry error
+      const currentItem = this.queue.items.find((i) => i.id === nextItem.id);
+      if (!currentItem) return;
+
+      currentItem.status = 'generating';
+      currentItem.error = undefined; // Clear previous retry error
       this.queue.updatedAt = Date.now();
       await this.persist();
-      logger.info(`Processing item ${this.queue.items.indexOf(nextItem) + 1}`, {
+
+      const idx = this.queue.items.findIndex((i) => i.id === nextItem.id) + 1;
+      logger.info(`Processing item ${idx}`, {
         itemId: nextItem.id,
         prompt: logger.truncatePrompt(nextItem.prompt),
       });
@@ -403,20 +414,21 @@ export class QueueManager {
         }
       }
 
-      // Success - only set completed if not cancelled while generating
-      if (nextItem.status === 'generating') {
-        nextItem.status = 'completed';
-        nextItem.imageUrl = result.url;
-        nextItem.imageStoreKey = nextItem.id;
-        nextItem.completedAt = Date.now();
-        nextItem.error = undefined; // Clear error on success
+      // Success - only set completed if not cancelled while generating (lookup by ID again in case queue reloaded)
+      const successItem = this.queue.items.find((i) => i.id === nextItem.id);
+      if (successItem && successItem.status === 'generating') {
+        successItem.status = 'completed';
+        successItem.imageUrl = result.url;
+        successItem.imageStoreKey = successItem.id;
+        successItem.completedAt = Date.now();
+        successItem.error = undefined; // Clear error on success
         this.queue.updatedAt = Date.now();
         await this.persist();
         
-        const idx = this.queue.items.indexOf(nextItem) + 1;
-        logger.info(`Item ${idx} completed`);
+        const completedIdx = this.queue.items.findIndex((i) => i.id === nextItem.id) + 1;
+        logger.info(`Item ${completedIdx} completed`);
       } else {
-        logger.info('Item generation finished but item was already cancelled');
+        logger.info('Item generation finished but item was already cancelled or completed');
       }
     } catch (err) {
       await this.handleItemFailure(nextItem, err);
@@ -432,8 +444,9 @@ export class QueueManager {
   }
 
   private async handleItemFailure(item: QueueItem, err: unknown): Promise<void> {
+    const currentItem = this.queue.items.find((i) => i.id === item.id) || item;
     const errorMessage = err instanceof Error ? err.message : String(err);
-    const idx = this.queue.items.indexOf(item) + 1;
+    const idx = this.queue.items.findIndex((i) => i.id === item.id) + 1;
 
     const lowerError = errorMessage.toLowerCase();
     const isRateLimit = lowerError.includes('limit') || 
@@ -445,8 +458,8 @@ export class QueueManager {
 
     if (isRateLimit) {
       // Do NOT increment retryCount or auto-retry; set to failed and pause queue immediately!
-      item.status = 'failed';
-      item.error = errorMessage;
+      currentItem.status = 'failed';
+      currentItem.error = errorMessage;
       logger.error(`Item ${idx} failed due to rate/usage limit. Pausing queue.`, {
         error: errorMessage,
       });
@@ -463,24 +476,24 @@ export class QueueManager {
 
       if (isContentPolicy) {
         // Fail immediately, do NOT retry, and do NOT pause the queue!
-        item.status = 'failed';
-        item.error = `Content Policy Blocked: ${errorMessage}`;
+        currentItem.status = 'failed';
+        currentItem.error = `Content Policy Blocked: ${errorMessage}`;
         logger.warn(`Item ${idx} failed due to content policy violation. Bypassing/skipping.`, {
           error: errorMessage,
         });
       } else {
-        item.retryCount++;
-        if (item.retryCount < this.maxRetries) {
+        currentItem.retryCount++;
+        if (currentItem.retryCount < this.maxRetries) {
           // Auto-retry
-          item.status = 'queued';
-          item.error = errorMessage;
-          logger.warn(`Item ${idx} failed, will retry (${item.retryCount}/${this.maxRetries})`, {
+          currentItem.status = 'queued';
+          currentItem.error = errorMessage;
+          logger.warn(`Item ${idx} failed, will retry (${currentItem.retryCount}/${this.maxRetries})`, {
             error: errorMessage,
           });
         } else {
           // Max retries exceeded
-          item.status = 'failed';
-          item.error = errorMessage;
+          currentItem.status = 'failed';
+          currentItem.error = errorMessage;
           logger.error(`Item ${idx} failed after ${this.maxRetries} attempts`, {
             error: errorMessage,
           });
