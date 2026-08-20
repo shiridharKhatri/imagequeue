@@ -134,13 +134,40 @@ async function downloadAndStoreImage(
   }
 }
 
+function updateExtensionBadge(queue: QueueData | null): void {
+  if (!queue || queue.items.length === 0 || queue.state === 'idle') {
+    chrome.action.setBadgeText({ text: '' });
+    return;
+  }
+
+  const total = queue.items.length;
+  const completedCount = queue.items.filter((i) => i.status === 'completed').length;
+  const failedCount = queue.items.filter((i) => i.status === 'failed').length;
+  const pendingCount = total - completedCount; // remaining items (including active generating + waiting)
+
+  if (queue.state === 'completed') {
+    chrome.action.setBadgeText({ text: '✓' });
+    chrome.action.setBadgeBackgroundColor({ color: '#22c55e' }); // green
+  } else if (queue.state === 'paused') {
+    chrome.action.setBadgeText({ text: pendingCount > 0 ? String(pendingCount) : '||' });
+    chrome.action.setBadgeBackgroundColor({ color: '#eab308' }); // amber yellow
+  } else if (queue.state === 'error' || failedCount > 0) {
+    chrome.action.setBadgeText({ text: String(pendingCount) });
+    chrome.action.setBadgeBackgroundColor({ color: '#ef4444' }); // red
+  } else {
+    chrome.action.setBadgeText({ text: String(pendingCount) });
+    chrome.action.setBadgeBackgroundColor({ color: '#ff5c35' }); // brand orange
+  }
+}
+
 // ─── Queue Manager Setup ───────────────────────────────────────
 
 queueManager.setProvider(chatgptProvider);
 queueManager.onImageDownload = downloadAndStoreImage;
 
-// Broadcast queue updates to popup
+// Broadcast queue updates to popup and update badge
 queueManager.setOnUpdate((queue: QueueData) => {
+  updateExtensionBadge(queue);
   try {
     chrome.runtime.sendMessage(
       createMessage(MSG.QUEUE_STATUS_UPDATE, queue)
