@@ -126,17 +126,46 @@ export async function removeBackground(inputBlob: Blob): Promise<Blob> {
   // Determine if we are removing a light background or a dark background
   const isLightBg = avgLuminance > 127;
 
-  // 2. Perform color distance-based background removal
-  // Thresholds for removal
-  const maxDiff = isLightBg ? 45 : 35; // Euclidean distance threshold
+  // 2. Perform boundary-seeded flood fill background removal.
+  // This prevents eating white or dark areas inside the product outline (e.g. labels, caps, reflections).
+  const maxDiff = isLightBg ? 45 : 35; // Euclidean distance threshold for propagation
   const softDiff = isLightBg ? 75 : 60; // Soft edge distance threshold
 
-  for (let i = 0; i < data.length; i += 4) {
-    const r = data[i];
-    const g = data[i + 1];
-    const b = data[i + 2];
+  const visited = new Uint8Array(width * height);
+  const queueX = new Int32Array(width * height);
+  const queueY = new Int32Array(width * height);
+  let head = 0;
+  let tail = 0;
 
-    // Compute Euclidean distance in RGB space from the detected background color
+  function enqueue(x: number, y: number) {
+    const idx = y * width + x;
+    if (visited[idx]) return;
+    visited[idx] = 1;
+    queueX[tail] = x;
+    queueY[tail] = y;
+    tail++;
+  }
+
+  // Seed all borders of the image
+  for (let x = 0; x < width; x++) {
+    enqueue(x, 0);
+    enqueue(x, height - 1);
+  }
+  for (let y = 0; y < height; y++) {
+    enqueue(0, y);
+    enqueue(width - 1, y);
+  }
+
+  while (head < tail) {
+    const x = queueX[head];
+    const y = queueY[head];
+    head++;
+
+    const idx = (y * width + x) * 4;
+    const r = data[idx];
+    const g = data[idx + 1];
+    const b = data[idx + 2];
+
     const dist = Math.sqrt(
       Math.pow(r - avgR, 2) +
       Math.pow(g - avgG, 2) +
@@ -144,12 +173,19 @@ export async function removeBackground(inputBlob: Blob): Promise<Blob> {
     );
 
     if (dist <= maxDiff) {
-      // Fully transparent
-      data[i + 3] = 0;
+      // It is fully background
+      data[idx + 3] = 0; // Transparent
+
+      // Propagate BFS to 4-connected neighbors
+      if (x > 0) enqueue(x - 1, y);
+      if (x < width - 1) enqueue(x + 1, y);
+      if (y > 0) enqueue(x, y - 1);
+      if (y < height - 1) enqueue(x, y + 1);
     } else if (dist <= softDiff) {
-      // Linear transition of transparency
+      // Linear transition of transparency on the outer edge (anti-aliasing).
+      // We do NOT propagate BFS past these edge pixels to prevent leakage.
       const ratio = (dist - maxDiff) / (softDiff - maxDiff);
-      data[i + 3] = Math.round(255 * ratio);
+      data[idx + 3] = Math.round(255 * ratio);
     }
   }
 
