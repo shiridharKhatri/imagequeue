@@ -260,7 +260,7 @@ export class QueueManager {
     }
 
     this.queue = saved;
-    logger.info('Queue restored from storage', {
+    logger.debug('Queue restored from storage', {
       state: saved.state,
       itemCount: saved.items.length,
     });

@@ -756,7 +756,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 // ─── Initialization ────────────────────────────────────────────
 
 async function initialize(): Promise<void> {
-  logger.info('Service worker starting');
+  logger.debug('Service worker starting');
 
   // Load settings and configure queue manager
   const settings = await settingsStorage.load();
@@ -782,7 +782,7 @@ async function initialize(): Promise<void> {
     logger.debug('Failed to check active tab on startup', { error: String(err) });
   }
 
-  logger.info('Service worker initialized');
+  logger.debug('Service worker initialized');
 }
 
 // Run initialization

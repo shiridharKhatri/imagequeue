@@ -118,7 +118,7 @@ async function handleProcessImages(
       fmt = getExtensionFromMime(stored.blob.type) as ImageFormat;
     }
     const ext = formatToExtension(fmt);
-    
+
     // Choose custom name if specified, otherwise index-based
     let filename = '';
     if (options.customFilenames && options.customFilenames[item.id]) {
@@ -194,7 +194,7 @@ async function handleBuildZip(
       if (isCrop) {
         blob = await cropTransparent(blob);
       }
-      
+
       let fmt = (isBgRemove || isCrop) ? 'png' : options.format;
       if (fmt === 'def') {
         fmt = getExtensionFromMime(stored.blob.type) as ImageFormat;
@@ -276,7 +276,7 @@ async function handleProcessSingleImage(
     fmt = getExtensionFromMime(stored.blob.type) as ImageFormat;
   }
   const ext = formatToExtension(fmt);
-  
+
   let filename = '';
   if (options.customFilenames && options.customFilenames[itemId]) {
     filename = `${options.customFilenames[itemId]}.${ext}`;
@@ -350,7 +350,7 @@ async function processImage(
     if (adj.contrast !== 100) filterParts.push(`contrast(${adj.contrast}%)`);
     if (adj.saturation !== 100) filterParts.push(`saturate(${adj.saturation}%)`);
     if (adj.grayscale > 0) filterParts.push(`grayscale(${adj.grayscale}%)`);
-    
+
     if (filterParts.length > 0) {
       ctx.filter = filterParts.join(' ');
     } else {
@@ -428,23 +428,23 @@ async function compressToTargetSize(
   initialQuality: number = 0.9
 ): Promise<Blob> {
   const targetBytes = targetSizeKb * 1024;
-  
+
   // Try with initial quality first
   let q = initialQuality;
   let blob = await canvasToBlob(canvas, mimeType, q);
   if (blob.size <= targetBytes) {
     return blob;
   }
-  
+
   // Binary search for quality setting
   let low = 0.05;
   let high = initialQuality;
   let bestBlob = blob;
-  
+
   for (let i = 0; i < 6; i++) {
     q = (low + high) / 2;
     blob = await canvasToBlob(canvas, mimeType, q);
-    
+
     if (blob.size <= targetBytes) {
       bestBlob = blob;
       low = q; // Quality is acceptable, see if we can get larger
@@ -452,12 +452,12 @@ async function compressToTargetSize(
       high = q; // File is too large, decrease quality
     }
   }
-  
+
   // Final fallback: if even the best found setting is too large, use lowest quality
   if (bestBlob.size > targetBytes) {
     return await canvasToBlob(canvas, mimeType, 0.05);
   }
-  
+
   return bestBlob;
 }
 
@@ -486,20 +486,20 @@ function crc32(bytes: Uint8Array): number {
 function createPngTextChunk(keyword: string, text: string): Uint8Array {
   const keywordBytes = new TextEncoder().encode(keyword);
   const textBytes = new TextEncoder().encode(text);
-  
+
   const chunkLength = keywordBytes.length + 1 + textBytes.length;
   const chunk = new Uint8Array(4 + 4 + chunkLength + 4);
-  
+
   new DataView(chunk.buffer).setUint32(0, chunkLength, false);
   chunk.set(new TextEncoder().encode('tEXt'), 4);
   chunk.set(keywordBytes, 8);
   chunk[8 + keywordBytes.length] = 0;
   chunk.set(textBytes, 8 + keywordBytes.length + 1);
-  
+
   const crcInput = chunk.subarray(4, 4 + 4 + chunkLength);
   const crc = crc32(crcInput);
   new DataView(chunk.buffer).setUint32(4 + 4 + chunkLength, crc, false);
-  
+
   return chunk;
 }
 
@@ -597,7 +597,7 @@ function createExifApp1(metadata: {
   dateTimeOriginal?: string;
 }): Uint8Array {
   const entries: { tag: number; type: number; count: number; value: Uint8Array }[] = [];
-  
+
   const addAsciiEntry = (tag: number, val?: string) => {
     if (val) {
       const bytes = new TextEncoder().encode(val + '\0');
@@ -612,12 +612,12 @@ function createExifApp1(metadata: {
   addAsciiEntry(0x0110, metadata.model);
   addAsciiEntry(0x0131, metadata.software);
   addAsciiEntry(0x8298, metadata.copyright);
-  
+
   if (metadata.dateTimeOriginal) {
     addAsciiEntry(0x0132, metadata.dateTimeOriginal); // Standard TIFF DateTime
     addAsciiEntry(0x9003, metadata.dateTimeOriginal); // EXIF DateTimeOriginal
   }
-  
+
   addAsciiEntry(0xa434, metadata.lensModel);
 
   // Geographic text tags (standard IPTC/XMP counterparts can also use these)
@@ -630,7 +630,7 @@ function createExifApp1(metadata: {
   const hasGps = metadata.gpsLatitude && metadata.gpsLongitude;
   const ifd0EntryCount = entries.length + (hasGps ? 1 : 0);
   const ifd0Size = 2 + (ifd0EntryCount * 12) + 4;
-  
+
   let offset = tiffHeaderSize + ifd0Size;
   const valueBytesList: Uint8Array[] = [];
   const entryOffsets: number[] = [];
@@ -675,12 +675,12 @@ function createExifApp1(metadata: {
   view.setUint32(4, 8, true);      // Offset to 0th IFD
 
   view.setUint16(8, ifd0EntryCount, true);
-  
+
   let entryOffset = 10;
   for (let i = 0; i < entries.length; i++) {
     const entry = entries[i];
     const bytes = entry.value;
-    
+
     // Find the offset for this entry's value
     let valOffset = 0;
     if (entry.tag === 0x8825) {
@@ -693,7 +693,7 @@ function createExifApp1(metadata: {
     view.setUint16(entryOffset, entry.tag, true);
     view.setUint16(entryOffset + 2, entry.type, true);
     view.setUint32(entryOffset + 4, entry.count, true);
-    
+
     if (bytes.length <= 4) {
       for (let j = 0; j < bytes.length; j++) {
         view.setUint8(entryOffset + 8 + j, bytes[j]);
@@ -814,7 +814,7 @@ async function injectMetadata(
 
   if (format === 'webp' && width && height) {
     if (bytes[0] !== 0x52 || bytes[1] !== 0x49 || bytes[2] !== 0x46 || bytes[3] !== 0x46 || // RIFF
-        bytes[8] !== 0x57 || bytes[9] !== 0x45 || bytes[10] !== 0x42 || bytes[11] !== 0x50) { // WEBP
+      bytes[8] !== 0x57 || bytes[9] !== 0x45 || bytes[10] !== 0x42 || bytes[11] !== 0x50) { // WEBP
       return blob; // Invalid WebP
     }
 
@@ -842,7 +842,7 @@ async function injectMetadata(
         message: `[Offscreen WebP] Injecting metadata. Width: ${width}, Height: ${height}, app1Block size: ${app1Block.length}`,
         data: { metadata }
       }
-    }).catch(() => {});
+    }).catch(() => { });
 
     const hasVP8X = bytes[12] === 0x56 && bytes[13] === 0x50 && bytes[14] === 0x38 && bytes[15] === 0x58;
 
@@ -984,9 +984,9 @@ function encodeTiff(
   const headerSize = 8;
   const ifdEntryCount = entries.length;
   const ifdSize = 2 + (ifdEntryCount * 12) + 4;
-  
+
   let currentOffset = headerSize + ifdSize;
-  
+
   for (const entry of entries) {
     if (entry.tag === 258) {
       entry.value = currentOffset;

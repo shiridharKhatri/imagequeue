@@ -130,7 +130,13 @@ async function refreshLogs(): Promise<void> {
     return;
   }
 
-  logsContainer.innerHTML = logs
+  const visibleLogs = logs.filter((entry) => entry.level !== 'DEBUG');
+  if (visibleLogs.length === 0) {
+    logsContainer.innerHTML = '<div class="log-empty">No log entries</div>';
+    return;
+  }
+
+  logsContainer.innerHTML = visibleLogs
     .slice(-50)
     .reverse()
     .map((entry) => {
