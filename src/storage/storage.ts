@@ -54,11 +54,32 @@ export class SettingsStorage {
   /** Load settings (returns defaults merged with any saved values) */
   async load(): Promise<ExtensionSettings> {
     try {
-      const result = await chrome.storage.local.get(STORAGE_KEY_SETTINGS);
+      const result = await chrome.storage.local.get([STORAGE_KEY_SETTINGS, 'wp_disabled_by_default_v1']);
       const saved = result[STORAGE_KEY_SETTINGS];
-      if (!saved) return { ...DEFAULT_SETTINGS };
-      // Merge with defaults to pick up any new fields added in updates
-      return { ...DEFAULT_SETTINGS, ...saved };
+      const migrated = result['wp_disabled_by_default_v1'];
+
+      let settings: ExtensionSettings;
+      if (!saved) {
+        settings = { ...DEFAULT_SETTINGS };
+      } else {
+        settings = { ...DEFAULT_SETTINGS, ...saved };
+      }
+
+      if (!migrated) {
+        settings.wpEnabled = false;
+        if (settings.wpSiteUrl === 'https://us-vivalis.store') {
+          settings.wpSiteUrl = '';
+        }
+        if (settings.wpApiKey === 'aimedia_61969923c265d433cfee46a93b2e802d5707ea2dfd10be47') {
+          settings.wpApiKey = '';
+        }
+        await chrome.storage.local.set({
+          [STORAGE_KEY_SETTINGS]: JSON.parse(JSON.stringify(settings)),
+          'wp_disabled_by_default_v1': true,
+        });
+      }
+
+      return settings;
     } catch (err) {
       console.error('[SettingsStorage] load failed:', err);
       return { ...DEFAULT_SETTINGS };

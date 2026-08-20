@@ -67,8 +67,8 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
   pauseOnFailure: true,
   newConversationPerPrompt: false,
   wpEnabled: false,
-  wpSiteUrl: 'https://us-vivalis.store',
-  wpApiKey: 'aimedia_61969923c265d433cfee46a93b2e802d5707ea2dfd10be47',
+  wpSiteUrl: '',
+  wpApiKey: '',
   authorName: '',
 };
 
