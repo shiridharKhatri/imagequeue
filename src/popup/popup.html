@@ -135,8 +135,15 @@
         <div class="col-right">
           <div id="queue-items" class="queue-items" style="flex:1; width:100%;">
             <!-- Queue items injected by JS -->
-          </div>
+      </div>
+
+      <!-- Debug Logs for troubleshooting background tab issues -->
+      <div id="debug-logs" style="margin-top:var(--space-md); padding:10px; background:#18181b; border:1px solid #27272a; border-radius:6px; font-family:monospace; font-size:10px; color:#a1a1aa; max-height:120px; overflow-y:auto; width:100%; box-sizing:border-box; display:block;">
+        <div style="display:flex; justify-content:space-between; align-items:center; font-weight:bold; color:var(--text-secondary); margin-bottom:6px; font-size:9px; text-transform:uppercase; letter-spacing:0.05em;">
+          <span>Live Activity Log (Troubleshooting):</span>
+          <button id="btn-clear-popup-logs" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:9px; padding:0;">[Clear]</button>
         </div>
+        <div id="debug-logs-entries" style="display:flex; flex-direction:column; gap:3px;">No log entries. Switch tabs or wait to see logs.</div>
       </div>
     </section>
 

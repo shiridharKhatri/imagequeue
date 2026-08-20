@@ -58,6 +58,8 @@ const btnDownloadIndividual = $<HTMLButtonElement>('btn-download-individual');
 const btnNewBatch = $<HTMLButtonElement>('btn-new-batch');
 
 const exifDeviceSelect = $<HTMLSelectElement>('exif-device-select');
+const debugLogsEntries = $<HTMLElement>('debug-logs-entries');
+const btnClearPopupLogs = $<HTMLButtonElement>('btn-clear-popup-logs');
 const exifToggle = $<HTMLInputElement>('exif-toggle');
 const btnClearExif = $<HTMLButtonElement>('btn-clear-exif');
 const btnRandomExif = $<HTMLButtonElement>('btn-random-exif');
@@ -914,9 +916,53 @@ chrome.runtime.onMessage.addListener(
           providerSelect.value = settings.activeProvider || 'chatgpt';
         }
       }).catch(() => {});
+    } else if (message.type === 'LOG_ENTRY') {
+      appendLogToPopup(message.payload as any);
     }
   }
 );
+
+// ─── Popup Log Utilities ───────────────────────────────────────
+
+interface SimpleLog {
+  timestamp: number;
+  level: string;
+  message: string;
+}
+
+function appendLogToPopup(entry: SimpleLog): void {
+  const time = new Date(entry.timestamp).toLocaleTimeString('en-US', { hour12: false });
+  const entryEl = document.createElement('div');
+  entryEl.innerHTML = `<span style="color:#71717a;">[${time}]</span> <span style="font-weight:bold; color:${entry.level === 'ERROR' ? '#ef4444' : entry.level === 'WARN' ? '#f59e0b' : '#3b82f6'};">[${entry.level}]</span> ${escapeHtml(entry.message)}`;
+  
+  // Clear placeholder
+  if (debugLogsEntries.textContent === 'No log entries. Switch tabs or wait to see logs.') {
+    debugLogsEntries.textContent = '';
+  }
+
+  debugLogsEntries.appendChild(entryEl);
+  // Keep last 15 entries
+  while (debugLogsEntries.children.length > 15) {
+    debugLogsEntries.removeChild(debugLogsEntries.firstChild!);
+  }
+  // Scroll to bottom
+  const container = document.getElementById('debug-logs');
+  if (container) container.scrollTop = container.scrollHeight;
+}
+
+async function fetchLogsForPopup(): Promise<void> {
+  try {
+    const logs = await sendToBackground<SimpleLog[]>(MSG.GET_LOGS);
+    if (logs && logs.length > 0) {
+      debugLogsEntries.textContent = '';
+      logs.slice(-15).forEach((entry) => {
+        appendLogToPopup(entry);
+      });
+    }
+  } catch {
+    // ignore
+  }
+}
 
 // ─── Initialization ────────────────────────────────────────────
 
@@ -942,6 +988,9 @@ async function init(): Promise<void> {
 
   // Load active reference image status
   await loadActiveReferenceImage();
+
+  // Load debug logs
+  fetchLogsForPopup();
 
   // Check for existing queue
   try {
@@ -996,6 +1045,10 @@ async function init(): Promise<void> {
 
 btnAddPrompt.addEventListener('click', () => addPromptField());
 btnGenerate.addEventListener('click', handleGenerate);
+btnClearPopupLogs.addEventListener('click', async () => {
+  await sendToBackground(MSG.CLEAR_LOGS);
+  debugLogsEntries.innerHTML = '<div style="color:var(--text-muted);">Logs cleared.</div>';
+});
 
 btnPause.addEventListener('click', () => sendToBackground(MSG.PAUSE_QUEUE));
 btnResume.addEventListener('click', () => sendToBackground(MSG.RESUME_QUEUE));

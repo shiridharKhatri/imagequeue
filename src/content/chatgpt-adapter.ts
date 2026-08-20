@@ -440,10 +440,43 @@ function extractBestImageUrl(messageElement: Element): string | null {
     }
   }
 
-  // Diagnostics: if we found images but none matched, log their src attributes!
-  if (allImgs.length > 0) {
-    const srcs = Array.from(allImgs).map(img => (img as HTMLImageElement).src || 'no-src');
-    logger.info('Found image elements but none matched filters', { count: allImgs.length, srcs });
+  // STRATEGY 4 (FALLBACK): Search the entire document from bottom to top for the latest DALL-E image.
+  // This is a bulletproof fallback if ChatGPT wraps the image differently or outside the expected assistant message container.
+  logger.info('Scoped message search failed. Running document-wide chronological search fallback.');
+  
+  const allDocLinks = Array.from(document.querySelectorAll('a[download]'));
+  for (let i = allDocLinks.length - 1; i >= 0; i--) {
+    const link = allDocLinks[i] as HTMLAnchorElement;
+    const href = link.href;
+    if (href && isImageUrl(href)) {
+      logger.info('Found generated image via document-wide download link search', { url: href.slice(0, 80) });
+      return href;
+    }
+  }
+
+  const allDocImgs = Array.from(document.querySelectorAll('img'));
+  for (let i = allDocImgs.length - 1; i >= 0; i--) {
+    const img = allDocImgs[i];
+    const src = img.src || '';
+    if (src.includes('avatar') || src.includes('profile') || src.includes('icon')) continue;
+    if (img.closest('[class*="avatar"]') || img.closest('[class*="profile"]')) continue;
+    
+    const candidates = [
+      img.src,
+      img.getAttribute('data-src'),
+      img.getAttribute('srcset'),
+      img.getAttribute('data-original-src'),
+      img.getAttribute('data-image-src')
+    ];
+    for (const rawSrc of candidates) {
+      if (rawSrc) {
+        const cleanSrc = parseSrcset(rawSrc);
+        if (cleanSrc && isImageUrl(cleanSrc)) {
+          logger.info('Found generated image via document-wide img search', { url: cleanSrc.slice(0, 80) });
+          return cleanSrc;
+        }
+      }
+    }
   }
 
   return null;
@@ -506,12 +539,14 @@ function isStillCreating(messageElement: Element): boolean {
     return true;
   }
 
-  // Check for progress bars, skeletons, or spin icons
+  // Check for progress bars, skeletons, spin icons, or DALL-E blocks
   const selectors = [
     '[class*="loading"]',
     '[class*="spinner"]',
     '[class*="progress"]',
     '[class*="skeleton"]',
+    '[class*="dalle"]',
+    '[class*="estuary"]',
     '.animate-spin',
     'svg.animate-spin',
   ];
@@ -537,6 +572,8 @@ function isImageUrl(url: string): boolean {
   if (url.includes('oaiusercontent.com')) return true;
   if (url.includes('dalle')) return true;
   if (url.includes('/backend-api/estuary/content')) return true;
+  if (url.includes('/backend-api/files/')) return true;
+  if (url.includes('/backend-api/')) return true;
 
   // Common image extensions
   const imageExtensions = ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg'];
