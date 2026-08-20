@@ -1,5 +1,5 @@
 {
-  "name": "image-queue",
+  "name": "lycoris",
   "version": "1.0.0",
   "description": "Chrome Extension: Queue multiple image prompts in ChatGPT, generate sequentially, process locally, download as ZIP",
   "type": "module",
