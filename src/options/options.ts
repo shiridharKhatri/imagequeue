@@ -20,7 +20,6 @@ const autoZipCheckbox = $<HTMLInputElement>('auto-zip');
 const deleteAfterZipCheckbox = $<HTMLInputElement>('delete-after-zip');
 
 // WordPress Settings
-const wpEnabledCheckbox = $<HTMLInputElement>('wp-enabled');
 const wpSiteUrlInput = $<HTMLInputElement>('wp-site-url');
 const wpApiKeyInput = $<HTMLInputElement>('wp-api-key');
 const defaultAuthorInput = $<HTMLInputElement>('default-author');
@@ -54,7 +53,6 @@ async function loadSettings(): Promise<void> {
   autoZipCheckbox.checked = settings.autoZipOnComplete;
   deleteAfterZipCheckbox.checked = settings.deleteAfterZip;
 
-  wpEnabledCheckbox.checked = settings.wpEnabled;
   wpSiteUrlInput.value = settings.wpSiteUrl || '';
   wpApiKeyInput.value = settings.wpApiKey || '';
   defaultAuthorInput.value = settings.authorName || '';
@@ -76,7 +74,7 @@ async function saveSettings(): Promise<void> {
     defaultFilenamePrefix: defaultPrefixInput.value.trim() || 'image',
     autoZipOnComplete: autoZipCheckbox.checked,
     deleteAfterZip: deleteAfterZipCheckbox.checked,
-    wpEnabled: wpEnabledCheckbox.checked,
+    wpEnabled: true,
     wpSiteUrl: wpSiteUrlInput.value.trim(),
     wpApiKey: wpApiKeyInput.value.trim(),
     authorName: defaultAuthorInput.value.trim(),

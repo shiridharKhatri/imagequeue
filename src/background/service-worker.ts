@@ -360,7 +360,27 @@ async function handleMessage(
       }
       break;
     }
-
+    case MSG.PROCESS_SINGLE_IMAGE: {
+      const { itemId, options, prompt } = message.payload as { itemId: string; options: ProcessingOptions; prompt: string };
+      ensureOffscreenDocument()
+        .then(() => {
+          chrome.runtime.sendMessage({
+            type: 'OFFSCREEN_PROCESS_SINGLE_IMAGE',
+            payload: { itemId, options, prompt }
+          }, (response) => {
+            const err = chrome.runtime.lastError;
+            if (err) {
+              sendResponse({ error: err.message });
+            } else {
+              sendResponse(response);
+            }
+          });
+        })
+        .catch((err) => {
+          sendResponse({ error: String(err) });
+        });
+      break;
+    }
     // ─── ChatGPT & Gemini tabs ────────────────────────────
 
     case MSG.OPEN_CHATGPT: {

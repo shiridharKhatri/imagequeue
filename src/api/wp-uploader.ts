@@ -17,6 +17,12 @@ export interface WPUploadMetadata {
   sub_location?: string;
   latitude?: string;
   longitude?: string;
+  make?: string;
+  model?: string;
+  lens_model?: string;
+  software?: string;
+  copyright?: string;
+  date_time_original?: string;
 }
 
 export interface WPUploadConfig {
@@ -44,7 +50,13 @@ export async function uploadToWordPressMedia(
   imageDataOrUrl: string,
   metadata: WPUploadMetadata = {}
 ): Promise<WPUploadResponse> {
-  const cleanSiteUrl = config.siteUrl.replace(/\/+$/, '');
+  let cleanSiteUrl = config.siteUrl.replace(/\/+$/, '');
+  
+  if (cleanSiteUrl.includes('/wp-json/')) {
+    const wpJsonIndex = cleanSiteUrl.indexOf('/wp-json/');
+    cleanSiteUrl = cleanSiteUrl.substring(0, wpJsonIndex);
+  }
+
   const endpoint = `${cleanSiteUrl}/wp-json/ai-media/v1/upload`;
   
   const payload = {
@@ -61,7 +73,13 @@ export async function uploadToWordPressMedia(
     city: metadata.city || '',
     sub_location: metadata.sub_location || '',
     latitude: metadata.latitude || '',
-    longitude: metadata.longitude || ''
+    longitude: metadata.longitude || '',
+    make: metadata.make || '',
+    model: metadata.model || '',
+    lens_model: metadata.lens_model || '',
+    software: metadata.software || '',
+    copyright: metadata.copyright || '',
+    date_time_original: metadata.date_time_original || ''
   };
 
   const response = await fetch(endpoint, {

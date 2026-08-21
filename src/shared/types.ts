@@ -98,6 +98,8 @@ export interface ProcessingOptions {
   bgRemove?: Record<string, boolean>;
   /** Optional custom crop mapping item.id -> boolean */
   crop?: Record<string, boolean>;
+  /** Optional custom resolution mapping item.id -> string */
+  customResolutions?: Record<string, string>;
   /** Optional custom EXIF metadata mapping item.id -> metadata */
   customMetadata?: Record<string, {
     title?: string;

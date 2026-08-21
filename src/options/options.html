@@ -152,6 +152,8 @@
                 <select id="default-resolution" class="select">
                   <option value="0">Original</option>
                   <option value="1200x628">1200x628 (WordPress Widescreen)</option>
+                  <option value="872x560">872x560 (Blog Featured)</option>
+                  <option value="340x340">340x340 (Product Image)</option>
                   <option value="1200x1200">1200x1200 (Square)</option>
                   <option value="1920x1080">1920x1080 (Widescreen)</option>
                   <option value="1080x1920">1080x1920 (Vertical Story)</option>
@@ -199,19 +201,9 @@
             <p class="card-desc">Configure direct REST API media upload variables for automated remote store updates.</p>
           </div>
           <div class="card-body">
-            <div class="setting-toggle-row">
-              <div class="toggle-text">
-                <span class="toggle-title">Enable direct WordPress upload</span>
-                <span class="toggle-sub">Uploads successfully processed items directly to WP Media Library</span>
-              </div>
-              <label class="switch">
-                <input type="checkbox" id="wp-enabled" />
-                <span class="slider"></span>
-              </label>
-            </div>
             <div class="field">
               <label for="wp-site-url">WordPress Site URL</label>
-              <input type="text" id="wp-site-url" class="input" placeholder="https://us-vivalis.store" />
+              <input type="text" id="wp-site-url" class="input" placeholder="https://example.com" />
             </div>
             <div class="field">
               <label for="wp-api-key">X-AI-Upload-Key (API Key)</label>

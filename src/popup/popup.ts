@@ -90,7 +90,8 @@ const DEFAULT_PROMPTS_TEMPLATES = [
   `Create a hyper-realistic photo of "[product]" being used. Show the open bottle with the lid open, next to a hand holding capsules, captured casually on a smartphone. Warm ambient lighting, cozy home environment in the background. Resolution: 1200x628 pixels. Format: JPG-style compression.`,
   `Generate a realistic image of "[product]" unboxed on a surface. Include realistic evidence of the original shipping package (e.g., torn shipping box, packing paper, utility-knife cut along the top seam, open box flaps) resting in the background or side. Product packaging remains the main focus. Packing material naturally disturbed, spilling from open flap. Product is slightly off-center, casual positioning. Casual smartphone photo, natural ambient lighting.\n🔹 Output Specs: Resolution: 1200x628 pixels. Format: JPG-style compression.`,
   `Create a realistic BEFORE AND AFTER comparison image for "[product]" using a side-by-side comparison (BEFORE on the left, AFTER on the right). Both panels must depict the same subject (person, body part, or environment) with similar framing and composition. Preserve identity, skin tone, hair color, and general environment. Only the intended improvement changes. Subtle differences in lighting, posture, wrinkles, and background details are allowed to show separate moments in time (temporal evolution). Smartphone photo realism.`,
-  `Create a professional feature image of a single "[product]" bottle against a clean, solid, chroma-key green screen background (neon green). Sharp details, centered studio composition. Resolution: 300x300 pixels. Square 1:1 aspect ratio. Format: JPG-style compression.`
+  `Create a professional widescreen feature image of a single "[product]" package centered against a clean, solid background in a color that matches and complements the product's branding and packaging color. Sharp details, centered studio composition. Resolution: 1200x628 pixels. Widescreen 16:9 aspect ratio. Format: JPG-style compression.`,
+  `Create a professional product image of a single "[product]" bottle against a clean, solid background in a color that matches and complements the product's packaging and branding color. Sharp details, centered studio composition. Resolution: 300x300 pixels. Square 1:1 aspect ratio. Format: JPG-style compression.`
 ];
 
 const referenceImageInput = $<HTMLInputElement>('reference-image-input');
@@ -175,16 +176,20 @@ function addPromptField(value = ''): void {
   group.dataset.promptUid = promptUid;
 
   group.innerHTML = `
-    <div class="prompt-label">
-      <span class="prompt-label-text">Prompt ${num}</span>
+    <div class="prompt-label" style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+      <div style="display:flex; align-items:center; gap:6px;">
+        <input type="checkbox" class="prompt-toggle-check" checked style="width:12px; height:12px; accent-color:var(--accent); cursor:pointer;" />
+        <span class="prompt-label-text">Prompt ${num}</span>
+      </div>
       ${num > MIN_PROMPTS ? '<button class="prompt-remove" title="Remove prompt">×</button>' : ''}
     </div>
     <textarea
       class="prompt-textarea"
       placeholder="Describe the image you want to generate..."
       rows="2"
+      style="transition: opacity 0.2s;"
     >${escapeHtml(value)}</textarea>
-    <div class="prompt-ref-image-section" style="margin-top:6px; display:flex; align-items:center; gap:8px; width:100%;">
+    <div class="prompt-ref-image-section" style="margin-top:6px; display:flex; align-items:center; gap:8px; width:100%; transition: opacity 0.2s;">
       <button class="btn-prompt-ref-image" style="font-size:10px; padding:4px 8px; border:1px dashed rgba(255,255,255,0.15); border-radius:4px; background:transparent; color:var(--text-muted); cursor:pointer; transition:all 0.2s;">
         📎 Choose Reference Image
       </button>
@@ -193,6 +198,24 @@ function addPromptField(value = ''): void {
       <button class="btn-prompt-ref-clear" style="display:none; border:none; background:transparent; color:#ef4444; font-size:10px; cursor:pointer; padding:2px 4px;">Remove</button>
     </div>
   `;
+
+  const checkToggle = group.querySelector('.prompt-toggle-check') as HTMLInputElement;
+  const textarea = group.querySelector('.prompt-textarea') as HTMLTextAreaElement;
+  const refSection = group.querySelector('.prompt-ref-image-section') as HTMLElement;
+
+  checkToggle.addEventListener('change', () => {
+    if (checkToggle.checked) {
+      textarea.disabled = false;
+      textarea.style.opacity = '1';
+      refSection.style.opacity = '1';
+      refSection.style.pointerEvents = 'auto';
+    } else {
+      textarea.disabled = true;
+      textarea.style.opacity = '0.4';
+      refSection.style.opacity = '0.4';
+      refSection.style.pointerEvents = 'none';
+    }
+  });
 
   const removeBtn = group.querySelector('.prompt-remove');
   if (removeBtn) {
@@ -269,6 +292,11 @@ async function getPromptsData(): Promise<{ prompts: string[]; hasRefImage: boole
 
   for (let i = 0; i < promptGroups.length; i++) {
     const group = promptGroups[i] as HTMLElement;
+    const checkToggle = group.querySelector('.prompt-toggle-check') as HTMLInputElement | null;
+    if (checkToggle && !checkToggle.checked) {
+      continue; // Skip disabled/unchecked prompts!
+    }
+
     const ta = group.querySelector('.prompt-textarea') as HTMLTextAreaElement;
     const promptText = ta.value.trim();
     if (promptText) {
@@ -413,7 +441,15 @@ function showBatchView(queue: QueueData): void {
 
     const suffix = getIntelligentSuffix(item.prompt, i);
     const defaultName = `${prefix}-${suffix}`;
-    const isFeatureImg = item.prompt.toLowerCase().includes('background removed') || item.prompt.toLowerCase().includes('feature image');
+    const isProductImg = item.prompt.toLowerCase().includes('background removed') || item.prompt.toLowerCase().includes('product image');
+    const isFeatureImg = item.prompt.toLowerCase().includes('feature image');
+
+    let defaultRes = 'default';
+    if (isProductImg) {
+      defaultRes = '340x340';
+    } else if (isFeatureImg) {
+      defaultRes = '872x560';
+    }
     
     el.innerHTML = `
       <div class="batch-image-row">
@@ -429,20 +465,27 @@ function showBatchView(queue: QueueData): void {
             <span class="batch-image-device-badge" style="font-size:9px; color:var(--text-muted); background:rgba(255,255,255,0.05); padding:1px 6px; border-radius:4px; white-space:nowrap; border:1px solid rgba(255,255,255,0.03); flex-shrink:0;">📷 Picking device...</span>
           </div>
           <div class="batch-image-rename-field">
-            <input type="text" class="input batch-image-name-input" data-id="${item.id}" value="${defaultName}" placeholder="Filename" />
-            <span class="batch-image-ext-preview">${isFeatureImg ? '.png' : '.webp'}</span>
-            <label class="batch-bg-remove-toggle" title="Remove white background (transparent PNG)" style="display:flex; align-items:center; gap:3px; font-size:9px; color:var(--text-muted); cursor:pointer; flex-shrink:0; margin-left:4px; padding:2px 6px; border-radius:4px; border:1px solid rgba(255,255,255,0.08); background:${isFeatureImg ? 'rgba(139,92,246,0.15)' : 'rgba(255,255,255,0.03)'};">
-              <input type="checkbox" class="batch-bg-remove-check" data-id="${item.id}" ${isFeatureImg ? 'checked' : ''} style="width:12px; height:12px; accent-color:#8b5cf6; cursor:pointer;" />
+            <input type="text" class="input batch-image-name-input" data-id="${item.id}" value="${defaultName}" placeholder="Filename" style="flex:1; min-width:0; height:24px;" />
+            <span class="batch-image-ext-preview">${isProductImg ? '.png' : '.webp'}</span>
+            <select class="select batch-resolution-select" data-id="${item.id}" style="width:auto; height:24px; padding:0 12px 0 4px; font-size:9px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); color:var(--text-normal); border-radius:4px; cursor:pointer; min-width:85px; font-weight:500;">
+              <option value="default"${defaultRes === 'default' ? ' selected' : ''}>Global Size</option>
+              <option value="0"${defaultRes === '0' ? ' selected' : ''}>Original</option>
+              <option value="872x560"${defaultRes === '872x560' ? ' selected' : ''}>872x560 (Blog)</option>
+              <option value="340x340"${defaultRes === '340x340' ? ' selected' : ''}>340x340 (Product)</option>
+              <option value="1200x628">1200x628 (WP Wide)</option>
+              <option value="1200x1200">1200x1200 (Square)</option>
+            </select>
+            <label class="batch-bg-remove-toggle" title="Remove white background (transparent PNG)" style="display:flex; align-items:center; gap:3px; font-size:9px; color:var(--text-muted); cursor:pointer; flex-shrink:0; padding:2px 6px; border-radius:4px; border:1px solid rgba(255,255,255,0.08); background:${isProductImg ? 'rgba(139,92,246,0.15)' : 'rgba(255,255,255,0.03)'};">
+              <input type="checkbox" class="batch-bg-remove-check" data-id="${item.id}" ${isProductImg ? 'checked' : ''} style="width:12px; height:12px; accent-color:#8b5cf6; cursor:pointer;" />
               <span>BG✂️</span>
             </label>
-            <label class="batch-crop-toggle" title="Auto-crop transparent borders" style="display:flex; align-items:center; gap:3px; font-size:9px; color:var(--text-muted); cursor:pointer; flex-shrink:0; margin-left:4px; padding:2px 6px; border-radius:4px; border:1px solid rgba(255,255,255,0.08); background:${isFeatureImg ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.03)'};">
-              <input type="checkbox" class="batch-crop-check" data-id="${item.id}" ${isFeatureImg ? 'checked' : ''} style="width:12px; height:12px; accent-color:#3b82f6; cursor:pointer;" />
+            <label class="batch-crop-toggle" title="Auto-crop transparent borders" style="display:flex; align-items:center; gap:3px; font-size:9px; color:var(--text-muted); cursor:pointer; flex-shrink:0; padding:2px 6px; border-radius:4px; border:1px solid rgba(255,255,255,0.08); background:${isProductImg ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.03)'};">
+              <input type="checkbox" class="batch-crop-check" data-id="${item.id}" ${isProductImg ? 'checked' : ''} style="width:12px; height:12px; accent-color:#3b82f6; cursor:pointer;" />
               <span>Crop✂️</span>
             </label>
           </div>
         </div>
       </div>
-
     `;
 
     // Listen to manual user inputs to mark as dirty
@@ -605,7 +648,18 @@ function getProcessingOptions(): ProcessingOptions {
     }
   });
 
-  console.log('[popup] getProcessingOptions collected:', { bgRemove, crop });
+  const customResolutions: Record<string, string> = {};
+  const resSelects = batchImageList.querySelectorAll('.batch-resolution-select');
+  resSelects.forEach((select) => {
+    const htmlSelect = select as HTMLSelectElement;
+    const id = htmlSelect.dataset.id;
+    const val = htmlSelect.value;
+    if (id && val && val !== 'default') {
+      customResolutions[id] = val;
+    }
+  });
+
+  console.log('[popup] getProcessingOptions collected:', { bgRemove, crop, customResolutions });
 
   // Collect individual custom metadata
   const customMetadata: Record<string, any> = {};
@@ -642,6 +696,7 @@ function getProcessingOptions(): ProcessingOptions {
     customFilenames,
     bgRemove,
     crop,
+    customResolutions,
     customMetadata,
     metadata: exifToggle.checked ? {
       make: exifMakeInput.value.trim(),

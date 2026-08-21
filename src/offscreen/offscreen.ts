@@ -97,8 +97,11 @@ async function handleProcessImages(
     const isBgRemove = options.bgRemove?.[item.id] || false;
     const isCrop = options.crop?.[item.id] || false;
 
+    const itemResolution = (options.customResolutions && options.customResolutions[item.id]) || options.resolution;
+
     let processed = await processImage(stored.blob, {
       ...options,
+      resolution: itemResolution,
       metadata: itemMetadata,
     });
 
@@ -114,6 +117,11 @@ async function handleProcessImages(
       fmt = getExtensionFromMime(stored.blob.type) as ImageFormat;
     }
     const ext = formatToExtension(fmt);
+
+    // Re-inject metadata if background removal or cropping stripped it
+    if (isBgRemove || isCrop) {
+      processed = await injectMetadata(processed, fmt, itemMetadata);
+    }
 
     // Choose custom name if specified, otherwise index-based
     let filename = '';
@@ -247,8 +255,11 @@ async function handleProcessSingleImage(
   const isBgRemove = options.bgRemove?.[itemId] || false;
   const isCrop = options.crop?.[itemId] || false;
 
+  const itemResolution = (options.customResolutions && options.customResolutions[itemId]) || options.resolution;
+
   let processed = await processImage(stored.blob, {
     ...options,
+    resolution: itemResolution,
     metadata: itemMetadata,
   });
 
@@ -264,6 +275,11 @@ async function handleProcessSingleImage(
     fmt = getExtensionFromMime(stored.blob.type) as ImageFormat;
   }
   const ext = formatToExtension(fmt);
+
+  // Re-inject metadata if background removal or cropping stripped it
+  if (isBgRemove || isCrop) {
+    processed = await injectMetadata(processed, fmt, itemMetadata);
+  }
 
   let filename = '';
   if (options.customFilenames && options.customFilenames[itemId]) {

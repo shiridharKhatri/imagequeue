@@ -66,7 +66,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
   deleteAfterZip: false,
   pauseOnFailure: true,
   newConversationPerPrompt: false,
-  wpEnabled: false,
+  wpEnabled: true,
   wpSiteUrl: '',
   wpApiKey: '',
   authorName: '',
@@ -74,6 +74,6 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
 
 // ─── UI ────────────────────────────────────────────────────────
 
-export const DEFAULT_PROMPT_COUNT = 5;
+export const DEFAULT_PROMPT_COUNT = 6;
 export const MIN_PROMPTS = 1;
 export const MAX_PROMPTS = 20;
