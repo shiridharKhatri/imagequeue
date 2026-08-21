@@ -266,37 +266,36 @@ export function waitForImage(
         return false;
       }
 
-      // Let the DOM settle briefly after generating stops to ensure image URL or error text is fully loaded
-      if (checkAttemptsAfterStop < 3) {
-        checkAttemptsAfterStop++;
-        return false;
-      }
-
       // Since there's no active image loading or image element present, and we haven't found a valid URL,
-      // it means ChatGPT finished and returned text, a policy block, or an error.
+      // check if it is a known content policy, safety guidelines, or rate limit error text.
+      // If not, do NOT reject prematurely — keep waiting until the main timeout.
       const text = lastMsg.textContent?.trim() || 'No image generated';
+      const textLower = text.toLowerCase();
 
-      // Log DOM outerHTML for diagnostics
-      logger.info('Diagnostic: No image element matched. Assistant message DOM structure:', {
-        html: lastMsg.outerHTML.slice(0, 10000),
-        text
-      });
+      const isExplicitError = [
+        'content policy',
+        'safety guidelines',
+        'cannot generate',
+        'unable to generate',
+        "i'm sorry",
+        'violates',
+        'sorry, i cannot',
+        'error generating',
+        'rate limit',
+        'too many requests'
+      ].some(errWord => textLower.includes(errWord));
 
-      // If the text is just "Edit" or very short, the image is likely still mounting in the DOM.
-      // We return false to keep waiting instead of failing prematurely.
-      if (text === 'Edit' || text.toLowerCase().includes('edit') || text.length < 15) {
-        return false;
+      if (isExplicitError) {
+        resolved = true;
+        clearTimeout(timeout);
+        cleanup();
+        logger.warn('ChatGPT returned an explicit error/policy block', { error: text });
+        reject(new Error(text.length > 200 ? text.slice(0, 200) + '…' : text));
+        return true;
       }
 
-      resolved = true;
-      clearTimeout(timeout);
-      cleanup();
-
-      const errorText = text.length > 200 ? text.slice(0, 200) + '…' : text;
-      logger.warn('ChatGPT returned text/error instead of image', { error: errorText });
-      reject(new Error(errorText));
-      return true;
-
+      // Keep waiting to see if DALL-E mounts the image element in the DOM (crucial for slow/background tabs)
+      logger.info('DOM settled with text but no image element yet. Keep waiting to see if it mounts...', { textSnippet: text.slice(0, 100) });
       return false;
     };
 
