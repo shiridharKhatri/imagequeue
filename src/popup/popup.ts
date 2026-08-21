@@ -474,18 +474,15 @@ function showBatchView(queue: QueueData): void {
               <option value="1200x628">1200x628 (WP Wide)</option>
               <option value="1200x1200">1200x1200 (Square)</option>
             </select>
-            <label class="batch-bg-remove-toggle" title="Remove white background (transparent PNG)" style="display:flex; align-items:center; gap:3px; font-size:9px; color:var(--text-muted); cursor:pointer; flex-shrink:0; padding:2px 6px; border-radius:4px; border:1px solid rgba(255,255,255,0.08); background:${isProductImg ? 'rgba(139,92,246,0.15)' : 'rgba(255,255,255,0.03)'};">
-              <input type="checkbox" class="batch-bg-remove-check" data-id="${item.id}" ${isProductImg ? 'checked' : ''} style="width:12px; height:12px; accent-color:#8b5cf6; cursor:pointer;" />
-              <span>BG✂️</span>
-            </label>
+            <select class="select batch-bg-select" data-id="${item.id}" style="flex-shrink:0; width:95px; height:24px; padding:0 18px 0 6px !important; background-position:right 6px center !important; font-size:9px; background-color:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); color:var(--text-normal); border-radius:4px; cursor:pointer; font-weight:500;">
+              <option value="original"${!isProductImg ? ' selected' : ''}>No Cutout</option>
+              <option value="transparent"${isProductImg ? ' selected' : ''}>Transparent</option>
+              <option value="color">Solid Color</option>
+            </select>
+            <input type="color" class="batch-bg-color-picker" data-id="${item.id}" value="#ffffff" style="display:none; width:22px; height:22px; border:1px solid rgba(255,255,255,0.15); padding:0; background:transparent; cursor:pointer; border-radius:4px; flex-shrink:0;" />
             <label class="batch-crop-toggle" title="Auto-crop transparent borders" style="display:flex; align-items:center; gap:3px; font-size:9px; color:var(--text-muted); cursor:pointer; flex-shrink:0; padding:2px 6px; border-radius:4px; border:1px solid rgba(255,255,255,0.08); background:${isProductImg ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.03)'};">
               <input type="checkbox" class="batch-crop-check" data-id="${item.id}" ${isProductImg ? 'checked' : ''} style="width:12px; height:12px; accent-color:#3b82f6; cursor:pointer;" />
               <span>Crop✂️</span>
-            </label>
-            <label class="batch-bg-color-toggle" title="Fill background with custom color" style="display:flex; align-items:center; gap:3px; font-size:9px; color:var(--text-muted); cursor:pointer; flex-shrink:0; padding:2px 6px; border-radius:4px; border:1px solid rgba(255,255,255,0.08); background:rgba(255,255,255,0.03);">
-              <input type="checkbox" class="batch-bg-color-enable" data-id="${item.id}" style="width:12px; height:12px; accent-color:#ef4444; cursor:pointer;" />
-              <span>🎨 BG</span>
-              <input type="color" class="batch-bg-color-value" data-id="${item.id}" value="#ffffff" style="width:16px; height:16px; border:none; padding:0; background:transparent; cursor:pointer; border-radius:2px;" />
             </label>
           </div>
         </div>
@@ -499,10 +496,19 @@ function showBatchView(queue: QueueData): void {
       updateFilenamePreview();
     });
 
-    const bgCheck = el.querySelector('.batch-bg-remove-check') as HTMLInputElement;
+    const bgSelect = el.querySelector('.batch-bg-select') as HTMLSelectElement;
+    const bgPicker = el.querySelector('.batch-bg-color-picker') as HTMLInputElement;
     const cropCheck = el.querySelector('.batch-crop-check') as HTMLInputElement;
-    const bgColEnable = el.querySelector('.batch-bg-color-enable') as HTMLInputElement;
-    const bgColValue = el.querySelector('.batch-bg-color-value') as HTMLInputElement;
+
+    const handleBgModeChange = () => {
+      const mode = bgSelect?.value || 'original';
+      if (mode === 'color') {
+        bgPicker.style.display = 'block';
+      } else {
+        bgPicker.style.display = 'none';
+      }
+      updateThumbnailPreview();
+    };
 
     const updateThumbnailPreview = async () => {
       const storedImage = await imageStore.get(item.id);
@@ -511,18 +517,14 @@ function showBatchView(queue: QueueData): void {
       const container = el.querySelector('.batch-image-thumbnail-container') as HTMLElement;
       if (!container) return;
 
-      const isBg = bgCheck?.checked || false;
+      const bgMode = bgSelect?.value || 'original';
+      const isBg = bgMode === 'transparent' || bgMode === 'color';
       const isCrop = cropCheck?.checked || false;
-      const isBgCol = bgColEnable?.checked || false;
-      const bgColorVal = bgColValue?.value || '#ffffff';
+      const isBgCol = bgMode === 'color';
+      const bgColorVal = bgPicker?.value || '#ffffff';
 
-      const bgLabel = el.querySelector('.batch-bg-remove-toggle') as HTMLElement;
       const cropLabel = el.querySelector('.batch-crop-toggle') as HTMLElement;
-      const bgColorLabel = el.querySelector('.batch-bg-color-toggle') as HTMLElement;
-
-      if (bgLabel) bgLabel.style.background = isBg ? 'rgba(139,92,246,0.15)' : 'rgba(255,255,255,0.03)';
       if (cropLabel) cropLabel.style.background = isCrop ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.03)';
-      if (bgColorLabel) bgColorLabel.style.background = isBgCol ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.03)';
 
       let blob = storedImage.blob;
       if (isBg) {
@@ -567,11 +569,15 @@ function showBatchView(queue: QueueData): void {
       }
     };
 
-    if (bgCheck) bgCheck.addEventListener('change', updateThumbnailPreview);
+    if (bgSelect) bgSelect.addEventListener('change', handleBgModeChange);
+    if (bgPicker) bgPicker.addEventListener('change', updateThumbnailPreview);
+    if (bgPicker) bgPicker.addEventListener('input', updateThumbnailPreview);
     if (cropCheck) cropCheck.addEventListener('change', updateThumbnailPreview);
-    if (bgColEnable) bgColEnable.addEventListener('change', updateThumbnailPreview);
-    if (bgColValue) bgColValue.addEventListener('change', updateThumbnailPreview);
-    if (bgColValue) bgColValue.addEventListener('input', updateThumbnailPreview);
+
+    // Initialize color picker visibility
+    if (bgSelect?.value === 'color') {
+      bgPicker.style.display = 'block';
+    }
 
     // Asynchronously load thumbnail preview from IndexedDB imageStore
     updateThumbnailPreview().then(() => {
@@ -646,16 +652,20 @@ function getProcessingOptions(): ProcessingOptions {
     }
   });
 
-  // Collect individual BG Remove and Crop states
+  // Collect individual Background Mode, Color, and Crop states
   const bgRemove: Record<string, boolean> = {};
   const crop: Record<string, boolean> = {};
+  const bgColorEnable: Record<string, boolean> = {};
+  const bgColorValue: Record<string, string> = {};
 
-  const bgChecks = batchImageList.querySelectorAll('.batch-bg-remove-check');
-  bgChecks.forEach((chk) => {
-    const htmlChk = chk as HTMLInputElement;
-    const id = htmlChk.dataset.id;
+  const bgSelects = batchImageList.querySelectorAll('.batch-bg-select');
+  bgSelects.forEach((select) => {
+    const htmlSelect = select as HTMLSelectElement;
+    const id = htmlSelect.dataset.id;
     if (id) {
-      bgRemove[id] = htmlChk.checked;
+      const mode = htmlSelect.value;
+      bgRemove[id] = (mode === 'transparent' || mode === 'color');
+      bgColorEnable[id] = (mode === 'color');
     }
   });
 
@@ -668,6 +678,15 @@ function getProcessingOptions(): ProcessingOptions {
     }
   });
 
+  const bgPickers = batchImageList.querySelectorAll('.batch-bg-color-picker');
+  bgPickers.forEach((picker) => {
+    const htmlPicker = picker as HTMLInputElement;
+    const id = htmlPicker.dataset.id;
+    if (id) {
+      bgColorValue[id] = htmlPicker.value;
+    }
+  });
+
   const customResolutions: Record<string, string> = {};
   const resSelects = batchImageList.querySelectorAll('.batch-resolution-select');
   resSelects.forEach((select) => {
@@ -676,27 +695,6 @@ function getProcessingOptions(): ProcessingOptions {
     const val = htmlSelect.value;
     if (id && val && val !== 'default') {
       customResolutions[id] = val;
-    }
-  });
-
-  const bgColorEnable: Record<string, boolean> = {};
-  const bgColorValue: Record<string, string> = {};
-
-  const colEnables = batchImageList.querySelectorAll('.batch-bg-color-enable');
-  colEnables.forEach((chk) => {
-    const htmlChk = chk as HTMLInputElement;
-    const id = htmlChk.dataset.id;
-    if (id) {
-      bgColorEnable[id] = htmlChk.checked;
-    }
-  });
-
-  const colValues = batchImageList.querySelectorAll('.batch-bg-color-value');
-  colValues.forEach((valInput) => {
-    const htmlInput = valInput as HTMLInputElement;
-    const id = htmlInput.dataset.id;
-    if (id) {
-      bgColorValue[id] = htmlInput.value;
     }
   });
 
