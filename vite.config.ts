@@ -27,8 +27,6 @@ function extensionPlugin() {
       }
 
       // Build content script as IIFE (self-contained, no imports)
-      // This is necessary because Chrome MV3 content_scripts in manifest
-      // cannot use ES module imports
       try {
         execSync(
           `npx vite build --config vite.content.config.ts`,
@@ -36,6 +34,18 @@ function extensionPlugin() {
         );
       } catch (err) {
         console.error('Content script build failed:', err);
+      }
+
+      // Create extension zip file
+      try {
+        // Run zip command on Mac to zip the dist directory contents excluding src/guide/
+        execSync(`zip -r lycoris-extension.zip manifest.json icons src assets -x "src/guide/*"`, {
+          cwd: distDir,
+          stdio: 'inherit'
+        });
+        console.log('Successfully created lycoris-extension.zip inside dist');
+      } catch (err) {
+        console.error('Failed to create extension zip:', err);
       }
     },
   };
@@ -55,6 +65,7 @@ export default defineConfig(({ mode }) => ({
         'popup': resolve(__dirname, 'src/popup/popup.html'),
         'options': resolve(__dirname, 'src/options/options.html'),
         'offscreen': resolve(__dirname, 'src/offscreen/offscreen.html'),
+        'guide': resolve(__dirname, 'src/guide/guide.html'),
       },
       output: {
         entryFileNames: (chunkInfo) => {
@@ -63,6 +74,7 @@ export default defineConfig(({ mode }) => ({
             'popup': 'src/popup/popup.js',
             'options': 'src/options/options.js',
             'offscreen': 'src/offscreen/offscreen.js',
+            'guide': 'src/guide/guide.js',
           };
           return nameMap[chunkInfo.name] || 'assets/[name]-[hash].js';
         },

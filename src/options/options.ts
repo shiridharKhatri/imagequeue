@@ -24,6 +24,7 @@ const wpSiteUrlInput = $<HTMLInputElement>('wp-site-url');
 const wpApiKeyInput = $<HTMLInputElement>('wp-api-key');
 const defaultAuthorInput = $<HTMLInputElement>('default-author');
 const customBgRemovalUrlInput = $<HTMLInputElement>('custom-bg-removal-url');
+const imageProcessingModeSelect = $<HTMLSelectElement>('image-processing-mode');
 
 // Diagnostics
 const diagTab = $<HTMLElement>('diag-tab');
@@ -58,6 +59,7 @@ async function loadSettings(): Promise<void> {
   wpApiKeyInput.value = settings.wpApiKey || '';
   defaultAuthorInput.value = settings.authorName || '';
   customBgRemovalUrlInput.value = settings.customBgRemovalUrl || '';
+  imageProcessingModeSelect.value = settings.imageProcessingMode || 'local';
 }
 
 async function saveSettings(): Promise<void> {
@@ -81,6 +83,7 @@ async function saveSettings(): Promise<void> {
     wpApiKey: wpApiKeyInput.value.trim(),
     authorName: defaultAuthorInput.value.trim(),
     customBgRemovalUrl: customBgRemovalUrlInput.value.trim(),
+    imageProcessingMode: imageProcessingModeSelect.value as 'local' | 'api',
   };
 
   await sendToBackground(MSG.SAVE_SETTINGS, { settings });

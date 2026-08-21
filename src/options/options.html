@@ -216,17 +216,24 @@
           </div>
         </section>
 
-        <!-- Section: Custom BG Removal API -->
+        <!-- Section: Custom Python Image Tool -->
         <section class="card settings-section" style="margin-top: var(--space-md);">
           <div class="card-header">
-            <h3 class="card-title">Custom AI Background Removal API</h3>
-            <p class="card-desc">Enter your FastAPI background removal API URL to replace client-side threshold filter with high-quality AI segmentation.</p>
+            <h3 class="card-title">Custom Python Image Tool (FastAPI)</h3>
+            <p class="card-desc">Choose between local browser-based Canvas processing or a fast local/remote Python FastAPI server to handle background removal, cropping, color fill, resizing, and metadata injection.</p>
           </div>
           <div class="card-body">
+            <div class="field" style="margin-bottom: 12px;">
+              <label for="image-processing-mode">Image Processing Mode</label>
+              <select id="image-processing-mode" class="select">
+                <option value="local">Local Browser (Canvas JS)</option>
+                <option value="api" selected>Python API (FastAPI Server)</option>
+              </select>
+            </div>
             <div class="field">
-              <label for="custom-bg-removal-url">AI Background Removal API URL</label>
-              <input type="text" id="custom-bg-removal-url" class="input" placeholder="e.g. http://localhost:8000/remove-bg" />
-              <p class="field-help" style="font-size:11px; color:var(--text-muted); margin-top:4px;">When set, the extension will send image blobs to this custom endpoint via HTTP POST. Leave empty to use client-side background removal.</p>
+              <label for="custom-bg-removal-url">Python API Server URL</label>
+              <input type="text" id="custom-bg-removal-url" class="input" placeholder="e.g. http://localhost:8000" />
+              <p class="field-help" style="font-size:11px; color:var(--text-muted); margin-top:4px;">The base URL of your local or remote Python FastAPI service (default is http://localhost:8000).</p>
             </div>
           </div>
         </section>

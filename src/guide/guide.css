@@ -1,0 +1,459 @@
+/* ─── Zinc Design Tokens ──────────────────────────────────────── */
+
+:root {
+  --bg-primary: #09090b;      /* zinc-950 */
+  --bg-card: #18181b;         /* zinc-900 */
+  --border: #27272a;          /* zinc-800 */
+  --border-hover: #3f3f46;    /* zinc-700 */
+  
+  --text-primary: #fafafa;    /* zinc-50 */
+  --text-secondary: #a1a1aa;  /* zinc-400 */
+  --text-muted: #71717a;      /* zinc-500 */
+  
+  --accent: #ff5e00;          /* Lycoris logo orange-red */
+  --accent-hover: #ff7820;
+  
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace;
+}
+
+/* ─── Reset & Base ───────────────────────────────────────────── */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  line-height: 1.6;
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+/* ─── Navbar ─────────────────────────────────────────────────── */
+
+.navbar {
+  border-bottom: 1px solid var(--border);
+  background-color: rgba(9, 9, 11, 0.8);
+  backdrop-filter: blur(8px);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  height: 60px;
+  display: flex;
+  align-items: center;
+}
+
+.nav-container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-icon {
+  color: var(--text-primary);
+}
+
+.brand-name {
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: -0.2px;
+}
+
+.nav-link-item {
+  color: var(--text-secondary);
+  transition: color 0.15s ease;
+  display: flex;
+  align-items: center;
+}
+
+.nav-link-item:hover {
+  color: var(--text-primary);
+}
+
+/* ─── Layout ─────────────────────────────────────────────────── */
+
+.docs-layout {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 48px 24px;
+}
+
+.docs-container {
+  display: grid;
+  grid-template-columns: 1fr 240px;
+  gap: 64px;
+}
+
+@media (max-width: 960px) {
+  .docs-container {
+    grid-template-columns: 1fr;
+  }
+  .docs-sidebar {
+    display: none;
+  }
+}
+
+/* ─── Content Area ───────────────────────────────────────────── */
+
+.docs-content {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+
+.content-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.meta-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.page-title {
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: -0.8px;
+  line-height: 1.2;
+}
+
+.page-lead {
+  font-size: 17px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-top: 4px;
+}
+
+/* ─── Download Block ─────────────────────────────────────────── */
+
+.download-block {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+}
+
+@media (max-width: 600px) {
+  .download-block {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .btn-download {
+    width: 100%;
+  }
+}
+
+.download-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.download-block-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.download-block-text {
+  font-size: 13.5px;
+  color: var(--text-secondary);
+}
+
+.btn-download {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background-color: var(--text-primary);
+  color: var(--bg-primary);
+  font-weight: 600;
+  font-size: 14px;
+  height: 40px;
+  padding: 0 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+  white-space: nowrap;
+}
+
+.btn-download:hover {
+  opacity: 0.9;
+}
+
+/* ─── Instructions Steps ─────────────────────────────────────── */
+
+.steps-section {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  border-top: 1px solid var(--border);
+  padding-top: 32px;
+}
+
+.steps-title {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.4px;
+}
+
+.step-item {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.step-number {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-muted);
+  background-color: var(--bg-card);
+  border: 1px solid var(--border);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.step-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.step-heading {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.step-description {
+  font-size: 14.5px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+/* ─── Tabs ───────────────────────────────────────────────────── */
+
+.browser-tabs-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 12px;
+}
+
+.browser-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 13.5px;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.browser-btn:hover {
+  color: var(--text-primary);
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.browser-btn.active {
+  color: var(--text-primary);
+  background-color: rgba(255, 255, 255, 0.1);
+  font-weight: 600;
+}
+
+.browser-tab-icon {
+  transition: opacity 0.15s ease;
+}
+
+.browser-tab-icon.icon-chrome {
+  color: #4285f4;
+  opacity: 0.6;
+}
+
+.browser-tab-icon.icon-edge {
+  color: #00a2ed;
+  opacity: 0.6;
+}
+
+.browser-tab-icon.icon-brave {
+  color: #ff4500;
+  opacity: 0.6;
+}
+
+.browser-tab-icon.icon-firefox {
+  color: #ff9400;
+  opacity: 0.6;
+}
+
+.browser-tab-icon.icon-safari {
+  color: #0070c9;
+  opacity: 0.6;
+}
+
+.browser-btn:hover .browser-tab-icon,
+.browser-btn.active .browser-tab-icon {
+  opacity: 1;
+}
+
+/* ─── Browser Steps Container ────────────────────────────────── */
+
+.browser-steps-container {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+  min-height: 120px;
+}
+
+.browser-steps {
+  display: none;
+}
+
+.browser-steps.active {
+  display: block;
+}
+
+.ordered-steps {
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ordered-steps li {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.ordered-steps li strong {
+  color: var(--text-primary);
+}
+
+code {
+  font-family: var(--font-mono);
+  background-color: rgba(255, 255, 255, 0.06);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.file-name {
+  color: #a7f3d0;  /* soft green */
+}
+
+.url-code {
+  color: #fdba74;  /* soft orange */
+}
+
+.terminal-box {
+  margin-top: 12px;
+  background-color: #09090b;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+  overflow-x: auto;
+}
+
+.terminal-box code {
+  background: none;
+  padding: 0;
+  color: #fdba74;  /* soft orange */
+}
+
+/* ─── Sidebar ────────────────────────────────────────────────── */
+
+.docs-sidebar {
+  position: sticky;
+  top: 108px;
+  height: fit-content;
+}
+
+.sidebar-block {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sidebar-heading {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.sidebar-links {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sidebar-link {
+  font-size: 14px;
+  color: var(--text-secondary);
+  transition: color 0.15s ease;
+}
+
+.sidebar-link:hover {
+  color: var(--text-primary);
+}
+
+.sidebar-link.active {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* ─── Footer ─────────────────────────────────────────────────── */
+
+.docs-footer {
+  border-top: 1px solid var(--border);
+  padding: 24px 0;
+  margin-top: 64px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}

@@ -1,4 +1,5 @@
 import type { ProcessingOptions, ImageFormat } from '../shared/types';
+import { logger } from '../shared/logger';
 
 /**
  * Image processing utilities.
@@ -32,19 +33,30 @@ export async function processImage(
     const reqW = parseInt(wStr) || 0;
     const reqH = parseInt(hStr) || 0;
     if (reqW > 0 && reqH > 0) {
-      targetWidth = reqW;
-      targetHeight = reqH;
-      isCropped = true;
-
-      const inputRatio = bitmap.width / bitmap.height;
-      const targetRatio = targetWidth / targetHeight;
-
-      if (inputRatio > targetRatio) {
-        cropW = bitmap.height * targetRatio;
-        cropX = (bitmap.width - cropW) / 2;
+      if (options.containFit) {
+        // Scale-to-fit: fit entire image inside target box, preserve aspect ratio
+        const scale = Math.min(reqW / bitmap.width, reqH / bitmap.height);
+        targetWidth = reqW;
+        targetHeight = reqH;
+        // We'll handle drawing with offset in the draw step
+        cropW = bitmap.width;
+        cropH = bitmap.height;
       } else {
-        cropH = bitmap.width / targetRatio;
-        cropY = (bitmap.height - cropH) / 2;
+        // Crop-to-fill: cover entire target box, crop excess
+        targetWidth = reqW;
+        targetHeight = reqH;
+        isCropped = true;
+
+        const inputRatio = bitmap.width / bitmap.height;
+        const targetRatio = targetWidth / targetHeight;
+
+        if (inputRatio > targetRatio) {
+          cropW = bitmap.height * targetRatio;
+          cropX = (bitmap.width - cropW) / 2;
+        } else {
+          cropH = bitmap.width / targetRatio;
+          cropY = (bitmap.height - cropH) / 2;
+        }
       }
     }
   } else {
@@ -59,7 +71,16 @@ export async function processImage(
   const canvas = new OffscreenCanvas(targetWidth, targetHeight);
   const ctx = canvas.getContext('2d')!;
   
-  if (isCropped) {
+  if (options.containFit && res.includes('x')) {
+    // Contain-fit: scale to fit inside target box, center on transparent canvas
+    ctx.clearRect(0, 0, targetWidth, targetHeight);
+    const scale = Math.min(targetWidth / bitmap.width, targetHeight / bitmap.height);
+    const drawW = Math.round(bitmap.width * scale);
+    const drawH = Math.round(bitmap.height * scale);
+    const offsetX = Math.round((targetWidth - drawW) / 2);
+    const offsetY = Math.round((targetHeight - drawH) / 2);
+    ctx.drawImage(bitmap, 0, 0, bitmap.width, bitmap.height, offsetX, offsetY, drawW, drawH);
+  } else if (isCropped) {
     ctx.drawImage(bitmap, cropX, cropY, cropW, cropH, 0, 0, targetWidth, targetHeight);
   } else {
     ctx.drawImage(bitmap, 0, 0, targetWidth, targetHeight);
@@ -87,19 +108,32 @@ export async function processImage(
  * Uses a threshold-based approach on pixel data.
  * Always outputs PNG (required for transparency).
  */
-export async function removeBackground(inputBlob: Blob): Promise<Blob> {
-  // Check if a custom AI background removal API URL is set
+export async function removeBackground(inputBlob: Blob, customBgRemovalUrl?: string): Promise<Blob> {
   try {
-    const result = await chrome.storage.local.get('iq_settings');
-    const settings = result['iq_settings'];
-    let apiUrl = (settings && settings.customBgRemovalUrl) ? settings.customBgRemovalUrl.trim() : 'http://localhost:8000';
+    let apiUrl = customBgRemovalUrl?.trim();
+
+  if (!apiUrl) {
+    try {
+      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+        const result = await chrome.storage.local.get('iq_settings');
+        const settings = result['iq_settings'];
+        apiUrl = (settings && settings.customBgRemovalUrl) ? settings.customBgRemovalUrl.trim() : 'http://localhost:8000';
+      }
+    } catch (err) {
+      logger.error('Failed to query custom AI BG removal settings/API', { error: String(err) });
+    }
+  }
+
+  if (!apiUrl) {
+    apiUrl = 'http://localhost:8000';
+  }
     
     if (apiUrl) {
       // Automatically append /remove-bg if only base URL/domain is provided
       if (!apiUrl.endsWith('/remove-bg') && !apiUrl.endsWith('/remove-bg/')) {
         apiUrl = apiUrl.replace(/\/$/, '') + '/remove-bg';
       }
-      console.log('[image-processor] Using AI background removal API:', apiUrl);
+      logger.info(`[image-processor] Using AI background removal API: ${apiUrl} (Blob size: ${inputBlob.size})`);
       const formData = new FormData();
       formData.append('file', inputBlob, 'image.png');
       
@@ -110,18 +144,21 @@ export async function removeBackground(inputBlob: Blob): Promise<Blob> {
       
       if (response.ok) {
         const outBlob = await response.blob();
+        logger.info(`[image-processor] AI Background removal succeeded. Output size: ${outBlob.size}`);
         return outBlob;
       } else {
         const errText = await response.text();
-        console.warn('[image-processor] Custom BG removal API returned error:', response.status, errText);
+        logger.error(`[image-processor] Custom BG removal API returned error: ${response.status} - ${errText}`);
       }
+    } else {
+      logger.warn('[image-processor] AI Background removal API URL is empty.');
     }
   } catch (e) {
-    console.error('[image-processor] Failed to query custom AI BG removal settings/API, falling back to local threshold:', e);
+    logger.error('[image-processor] Failed to query custom AI BG removal settings/API', { error: String(e) });
   }
 
   // Warn the user and return the original blob (no local threshold background removal fallback)
-  console.warn('[image-processor] AI Background removal API is not configured or failed. Returning original image.');
+  logger.warn('[image-processor] AI Background removal API failed or fallback returned original image.');
   return inputBlob;
 }
 

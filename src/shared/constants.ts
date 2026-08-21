@@ -71,6 +71,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
   wpApiKey: '',
   authorName: '',
   customBgRemovalUrl: 'http://localhost:8000',
+  imageProcessingMode: 'api',
 };
 
 // ─── UI ────────────────────────────────────────────────────────

@@ -23,6 +23,25 @@ class Logger {
 
   /** Create and store a log entry */
   private log(level: LogLevel, message: string, data?: Record<string, unknown>): void {
+    // If in popup, options, or offscreen document, delegate to background service worker
+    if (typeof window !== 'undefined') {
+      try {
+        const text = message + (data ? ' ' + JSON.stringify(data) : '');
+        chrome.runtime.sendMessage({
+          type: 'OFFSCREEN_LOG',
+          payload: { text, level: level.toLowerCase() }
+        }).catch(() => {});
+      } catch {
+        // Fallback
+      }
+
+      // Console output in local context
+      const prefix = `[${this.formatTime(Date.now())}] [${level}]`;
+      const consoleMethod = level === 'ERROR' ? 'error' : level === 'WARN' ? 'warn' : 'log';
+      console[consoleMethod](prefix, message, data ?? '');
+      return;
+    }
+
     const entry: LogEntry = {
       timestamp: Date.now(),
       level,

@@ -340,13 +340,28 @@ async function handleMessage(
     }
 
     case MSG.DOWNLOAD_ZIP: {
-      const { options } = message.payload as { options: ProcessingOptions };
+      const payload = message.payload as { options?: ProcessingOptions };
+      logger.info(`[service-worker] MSG.DOWNLOAD_ZIP received. Payload defined: ${!!payload}, options defined: ${!!payload?.options}`);
+      const options = payload?.options;
       try {
         const result = await downloadLatestZip(options);
         sendResponse(result);
       } catch (err) {
         sendResponse({ success: false, error: String(err) });
       }
+      break;
+    }
+
+    case MSG.OFFSCREEN_LOG: {
+      const { text, level } = message.payload as { text: string; level: 'info' | 'error' | 'warn' };
+      if (level === 'error') {
+        logger.error(text);
+      } else if (level === 'warn') {
+        logger.warn(text);
+      } else {
+        logger.info(text);
+      }
+      sendResponse({ success: true });
       break;
     }
 
@@ -499,7 +514,9 @@ async function processAndZipImages(
 }
 
 async function downloadLatestZip(options?: ProcessingOptions): Promise<{ success: boolean; error?: string }> {
+  logger.info(`[service-worker] downloadLatestZip called. options defined: ${!!options}, lastZipBlob defined: ${!!lastZipBlob}`);
   if (lastZipBlob && !options) {
+    logger.info('[service-worker] downloadLatestZip: Using cached lastZipBlob');
     try {
       const url = URL.createObjectURL(lastZipBlob);
       const queue = queueManager.getQueue();
@@ -514,6 +531,8 @@ async function downloadLatestZip(options?: ProcessingOptions): Promise<{ success
     }
   }
 
+  logger.info('[service-worker] downloadLatestZip: Generating new ZIP via offscreen document...');
+
   try {
     await ensureOffscreenDocument();
 
@@ -525,6 +544,7 @@ async function downloadLatestZip(options?: ProcessingOptions): Promise<{ success
     }
 
     // Tell offscreen to build ZIP and return as blob URL
+    logger.info(`[service-worker] downloadLatestZip: Sending OFFSCREEN_BUILD_ZIP message to offscreen. options format: ${options?.format}, bgRemoveKeys: ${Object.keys(options?.bgRemove || {})}`);
     const response = await chrome.runtime.sendMessage({
       type: 'OFFSCREEN_BUILD_ZIP',
       payload: {
@@ -532,6 +552,8 @@ async function downloadLatestZip(options?: ProcessingOptions): Promise<{ success
         options,
       },
     }) as { blobUrl?: string; filename?: string } | undefined;
+
+    logger.info(`[service-worker] downloadLatestZip: Received response from offscreen document. blobUrl: ${response?.blobUrl}, filename: ${response?.filename}`);
 
     if (response?.blobUrl) {
       await chrome.downloads.download({

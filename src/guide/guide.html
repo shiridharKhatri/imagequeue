@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Installation Guide - Lycoris Extension</title>
+  <meta name="description" content="Official setup and developer mode installation guide for the Lycoris browser extension.">
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="guide.css">
+</head>
+<body class="zinc-theme">
+
+  <nav class="navbar">
+    <div class="nav-container">
+      <div class="nav-brand">
+        <img class="brand-logo" src="../../icons/icon-128.png" width="24" height="24" alt="Lycoris Logo" style="border-radius: 4px; display: block;" />
+        <span class="brand-name">Lycoris Docs</span>
+      </div>
+      <div class="nav-links">
+        <a href="https://github.com" target="_blank" class="nav-link-item">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
+          </svg>
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="docs-layout">
+    <div class="docs-container">
+      
+      <!-- Left Column: Guide Content -->
+      <section class="docs-content">
+        <div class="content-header">
+          <span class="meta-label">Getting Started</span>
+          <h1 class="page-title">Developer Mode Installation</h1>
+          <p class="page-lead">Lycoris is loaded as an unpacked browser extension. Follow these instructions to download, unpack, and load the extension into your browser.</p>
+        </div>
+
+        <!-- Download Block -->
+        <div class="download-block">
+          <div class="download-details">
+            <h3 class="download-block-title">Latest Release</h3>
+            <p class="download-block-text">Contains all compiled assets, local background removal modules, and manifest v3 configurations.</p>
+          </div>
+          <a id="btn-download-extension" href="/lycoris-extension.zip" download="lycoris-extension.zip" class="btn-download">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Download ZIP
+          </a>
+        </div>
+
+        <!-- Installation Instructions -->
+        <div class="steps-section">
+          <h2 class="steps-title">Installation Steps</h2>
+          
+          <div class="step-item">
+            <div class="step-number">01</div>
+            <div class="step-body">
+              <h3 class="step-heading">Download and Extract</h3>
+              <p class="step-description">Download the extension archive using the button above. Extract the downloaded <code class="file-name">lycoris-extension.zip</code> file to a folder on your computer. Keep this folder in a permanent location (deleting or moving it will unload the extension).</p>
+            </div>
+          </div>
+
+          <div class="step-item">
+            <div class="step-number">02</div>
+            <div class="step-body">
+              <h3 class="step-heading">Choose Your Browser</h3>
+              <p class="step-description">Select your browser below to see customized instructions on how to load the unpacked folder.</p>
+              
+              <div class="browser-tabs-row">
+                <button class="browser-btn active" id="tab-chrome">
+                  <svg class="browser-tab-icon icon-chrome" viewBox="-10 -10 276 276" style="width:14px; height:14px; flex-shrink:0;">
+                    <linearGradient id="chrome-a" x1="145" x2="34" y1="253" y2="61" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#1e8e3e"/><stop offset="1" stop-color="#34a853"/></linearGradient>
+                    <linearGradient id="chrome-b" x1="111" x2="222" y1="254" y2="62" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fcc934"/><stop offset="1" stop-color="#fbbc04"/></linearGradient>
+                    <linearGradient id="chrome-c" x1="17" x2="239" y1="80" y2="80" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#d93025"/><stop offset="1" stop-color="#ea4335"/></linearGradient>
+                    <circle cx="128" cy="128" r="64" fill="#fff"/>
+                    <path fill="url(#chrome-a)" d="M96 183.4A63.7 63.7 0 0 1 72.6 160L17.2 64A128 128 0 0 0 128 256l55.4-96A64 64 0 0 1 96 183.4Z"/>
+                    <path fill="url(#chrome-b)" d="M192 128a63.7 63.7 0 0 1-8.6 32L128 256A128 128 0 0 0 238.9 64h-111a64 64 0 0 1 64 64Z"/>
+                    <circle cx="128" cy="128" r="52" fill="#1a73e8"/>
+                    <path fill="url(#chrome-c)" d="M96 72.6a63.7 63.7 0 0 1 32-8.6h110.8a128 128 0 0 0-221.7 0l55.5 96A64 64 0 0 1 96 72.6Z"/>
+                  </svg>
+                  Chrome
+                </button>
+                <button class="browser-btn" id="tab-edge">
+                  <svg class="browser-tab-icon icon-edge" viewBox="0 0 27600 27600" style="width:14px; height:14px; flex-shrink:0;">
+                    <linearGradient id="edge-a" gradientUnits="userSpaceOnUse"/>
+                    <linearGradient id="edge-b" x1="6870" x2="24704" y1="18705" y2="18705" xlink:href="#edge-a"><stop offset="0" stop-color="#0c59a4"/><stop offset="1" stop-color="#114a8b"/></linearGradient>
+                    <linearGradient id="edge-c" x1="16272" x2="5133" y1="10968" y2="23102" xlink:href="#edge-a"><stop offset="0" stop-color="#1b9de2"/><stop offset=".16" stop-color="#1595df"/><stop offset=".67" stop-color="#0680d7"/><stop offset="1" stop-color="#0078d4"/></linearGradient>
+                    <radialGradient id="edge-d" cx="16720" cy="18747" r="9538" xlink:href="#edge-a"><stop offset=".72" stop-opacity="0"/><stop offset=".95" stop-opacity=".53"/><stop offset="1"/></radialGradient>
+                    <radialGradient id="edge-e" cx="7130" cy="19866" r="14324" gradientTransform="matrix(.14843 -.98892 .79688 .1196 -8759 25542)" xlink:href="#edge-a"><stop offset=".76" stop-opacity="0"/><stop offset=".95" stop-opacity=".5"/><stop offset="1"/></radialGradient>
+                    <radialGradient id="edge-f" cx="2523" cy="4680" r="20243" gradientTransform="matrix(-.03715 .99931 -2.12836 -.07913 13579 3530)" xlink:href="#edge-a"><stop offset="0" stop-color="#35c1f1"/><stop offset=".11" stop-color="#34c1ed"/><stop offset=".23" stop-color="#2fc2df"/><stop offset=".31" stop-color="#2bc3d2"/><stop offset=".67" stop-color="#36c752"/></radialGradient>
+                    <radialGradient id="edge-g" cx="24247" cy="7758" r="9734" gradientTransform="matrix(.28109 .95968 -.78353 .22949 24510 -16292)" xlink:href="#edge-a"><stop offset="0" stop-color="#66eb6e"/><stop offset="1" stop-color="#66eb6e" stop-opacity="0"/></radialGradient>
+                    <path id="edge-h" d="M24105 20053a9345 9345 0 01-1053 472 10202 10202 0 01-3590 646c-4732 0-8855-3255-8855-7432 0-1175 680-2193 1643-2729-4280 180-5380 4640-5380 7253 0 7387 6810 8137 8276 8137 791 0 1984-230 2704-456l130-44a12834 12834 0 006660-5282c220-350-168-757-535-565z"/>
+                    <path id="edge-i" d="M11571 25141a7913 7913 0 01-2273-2137 8145 8145 0 01-1514-4740 8093 8093 0 013093-6395 8082 8082 0 011373-859c312-148 846-414 1554-404a3236 3236 0 012569 1297 3184 3184 0 01636 1866c0-21 2446-7960-8005-7960-4390 0-8004 4166-8004 7820 0 2319 538 4170 1212 5604a12833 12833 0 007684 6757 12795 12795 0 003908 610c1414 0 2774-233 4045-656a7575 7575 0 01-6278-803z"/>
+                    <path id="edge-j" d="M16231 15886c-80 105-330 250-330 566 0 260 170 512 472 723 1438 1003 4149 868 4156 868a5954 5954 0 003027-839 6147 6147 0 001133-850 6180 6180 0 001910-4437c26-2242-796-3732-1133-4392-2120-4141-6694-6525-11668-6525-7011 0-12703 5635-12798 12620 47-3654 3679-6605 7996-6605 350 0 2346 34 4200 1007 1634 858 2490 1894 3086 2921 618 1067 728 2415 728 2952s-271 1333-780 1990z"/>
+                    <use fill="url(#edge-b)" href="#edge-h"/>
+                    <use fill="url(#edge-d)" opacity=".35" href="#edge-h"/>
+                    <use fill="url(#edge-c)" href="#edge-i"/>
+                    <use fill="url(#edge-e)" opacity=".4" href="#edge-i"/>
+                    <use fill="url(#edge-f)" href="#edge-j"/>
+                    <use fill="url(#edge-g)" href="#edge-j"/>
+                  </svg>
+                  Edge
+                </button>
+                <button class="browser-btn" id="tab-brave">
+                  <svg class="browser-tab-icon icon-brave" viewBox="0 0 2770 2770" style="width:14px; height:14px; flex-shrink:0;">
+                    <linearGradient id="brave-a" y1="51%" y2="51%"><stop offset=".4" stop-color="#f50"/><stop offset=".6" stop-color="#ff2000"/></linearGradient>
+                    <linearGradient id="brave-b" x1="2%" y1="51%" y2="51%"><stop offset="0" stop-color="#ff452a"/><stop offset="1" stop-color="#ff2000"/></linearGradient>
+                    <path fill="url(#brave-a)" d="M2395 723l60-147-170-176c-92-92-288-38-288-38l-222-252H992L769 363s-196-53-288 37L311 575l60 147-75 218 250 953c52 204 87 283 234 387l457 310c44 27 98 74 147 74s103-47 147-74l457-310c147-104 182-183 234-387l250-953z"/>
+                    <path fill="#fff" d="M1935 524s287 347 287 420c0 75-36 94-72 133l-215 230c-20 20-63 54-38 113 25 60 60 134 20 210-40 77-110 128-155 120a820 820 0 01-190-90c-38-25-160-126-160-165s126-110 150-124c23-16 130-78 132-102s2-30-30-90-88-140-80-192c10-52 100-80 167-105l207-78c16-8 12-15-36-20-48-4-183-22-244-5s-163 43-173 57c-8 14-16 14-7 62l58 315c4 40 12 67-30 77-44 10-117 27-142 27s-99-17-142-27-35-37-30-77c4-40 48-268 57-315 10-48 1-48-7-62-10-14-113-40-174-57-60-17-196 1-244 6-48 4-52 10-36 20l207 77c66 25 158 53 167 105 10 53-47 132-80 192s-32 66-30 90 110 86 132 102c24 15 150 85 150 124s-119 140-159 165a820 820 0 01-190 90c-45 8-115-43-156-120-40-76-4-150 20-210 25-60-17-92-38-113l-215-230c-35-37-71-57-71-131s287-420 287-420l273 44c32 0 103-27 168-50 65-20 110-22 110-22s44 0 110 22 136 50 168 50c33 0 275-47 275-47zm-215 1328c18 10 7 32-10 44l-254 198c-20 20-52 50-73 50s-52-30-73-50a13200 13200 0 00-255-198c-16-12-27-33-10-44l150-80a870 870 0 01188-73c15 0 110 34 187 73l150 80z"/>
+                    <path fill="url(#brave-b)" d="M1999 363l-224-253H992L769 363s-196-53-288 37c0 0 260-23 350 123l276 47c32 0 103-27 168-50 65-20 110-22 110-22s44 0 110 22 136 50 168 50c33 0 275-47 275-47 90-146 350-123 350-123-92-92-288-38-288-38"/>
+                  </svg>
+                  Brave
+                </button>
+                <button class="browser-btn" id="tab-firefox">
+                  <svg class="browser-tab-icon icon-firefox" viewBox="0 0 51500 51500" style="width:14px; height:14px; flex-shrink:0;">
+                    <radialGradient id="firefox-b" cx="87.4%" cy="-12.9%" r="128%" gradientTransform="matrix(.8 0 0 1 .18 .13)"><stop offset=".13" stop-color="#ffbd4f"/><stop offset=".28" stop-color="#ff980e"/><stop offset=".47" stop-color="#ff3750"/><stop offset=".78" stop-color="#eb0878"/><stop offset=".86" stop-color="#e50080"/></radialGradient>
+                    <radialGradient id="firefox-d" cx="49%" cy="40%" r="128%" gradientTransform="matrix(.82 0 0 1 .09 0)"><stop offset=".3" stop-color="#960e18"/><stop offset=".35" stop-color="#b11927" stop-opacity=".74"/><stop offset=".43" stop-color="#db293d" stop-opacity=".34"/><stop offset=".5" stop-color="#f5334b" stop-opacity=".1"/><stop offset=".53" stop-color="#ff3750" stop-opacity="0"/></radialGradient>
+                    <radialGradient id="firefox-e" cx="48%" cy="-12%" r="140%"><stop offset=".13" stop-color="#fff44f"/><stop offset=".53" stop-color="#ff980e"/></radialGradient>
+                    <radialGradient id="firefox-f" cx="22.76%" cy="110.11%" r="100%"><stop offset=".35" stop-color="#3a8ee6"/><stop offset=".67" stop-color="#9059ff"/><stop offset="1" stop-color="#c139e6"/></radialGradient>
+                    <radialGradient id="firefox-h" cx="52%" cy="33%" r="59%" gradientTransform="scale(.9 1)"><stop offset=".21" stop-color="#9059ff" stop-opacity="0"/><stop offset=".97" stop-color="#6e008b" stop-opacity=".6"/></radialGradient>
+                    <radialGradient id="firefox-i" cx="210%" cy="-100%" r="290%"><stop offset=".1" stop-color="#ffe226"/><stop offset=".79" stop-color="#ff7139"/></radialGradient>
+                    <radialGradient id="firefox-j" cx="84%" cy="-41%" r="180%"><stop offset=".11" stop-color="#fff44f"/><stop offset=".46" stop-color="#ff980e"/><stop offset=".72" stop-color="#ff3647"/><stop offset=".9" stop-color="#e31587"/></radialGradient>
+                    <radialGradient id="firefox-k" cx="16.1%" cy="-18.6%" r="348.8%" gradientTransform="matrix(.10453 .46743 -.99452 .04913 -.05 -.26)"><stop offset="0" stop-color="#fff44f"/><stop offset=".3" stop-color="#ff980e"/><stop offset=".57" stop-color="#ff3647"/><stop offset=".74" stop-color="#e31587"/></radialGradient>
+                    <radialGradient id="firefox-l" cx="18.9%" cy="-42.5%" r="238.4%"><stop offset=".14" stop-color="#fff44f"/><stop offset=".48" stop-color="#ff980e"/><stop offset=".66" stop-color="#ff3647"/><stop offset=".9" stop-color="#e31587"/></radialGradient>
+                    <radialGradient id="firefox-m" cx="159.3%" cy="-44.72%" r="313.1%"><stop offset=".09" stop-color="#fff44f"/><stop offset=".63" stop-color="#ff980e"/></radialGradient>
+                    <linearGradient id="firefox-a" x1="87.25%" x2="9.4%" y1="15.5%" y2="93.1%"><stop offset=".05" stop-color="#fff44f"/><stop offset=".37" stop-color="#ff980e"/><stop offset=".53" stop-color="#ff3647"/><stop offset=".7" stop-color="#e31587"/></linearGradient>
+                    <linearGradient id="firefox-n" x1="80%" x2="18%" y1="14%" y2="84%"><stop offset=".17" stop-color="#fff44f" stop-opacity=".8"/><stop offset=".6" stop-color="#fff44f" stop-opacity="0"/></linearGradient>
+                    <path id="firefox-c" d="M47870 16735c-1044-2512-3160-5224-4820-6082 1352 2650 2134 5310 2433 7294 0-6 2 5 4 22l4 26c2268 6147 1032 12398-748 16218-2754 5910-9420 11967-19857 11670-11276-318-21210-8683-23064-19643-338-1728 0-2605 170-4008-207 1080-286 1394-390 3315l-2 123c0 13270 10760 24030 24032 24030 11887 0 21756-8630 23690-19963l110-927c477-4120-53-8453-1560-12075z"/><path id="firefox-g" d="M25677 21050c-40 598-2150 2660-2890 2660-6834 0-7943 4133-7943 4133 303 3480 2726 6348 5660 7865 134 70 270 130 405 193a13277 13277 0 00706 289 10674 10674 0 003127 603c11978 562 14300-14320 5655-18640 2213-385 4510 505 5794 1407-2100-3672-6025-6150-10530-6150-285 0-564 24-844 43a12025 12025 0 00-6614 2549c366 310 780 724 1650 1583 1630 1606 5813 3270 5822 3465z"/><path fill="url(#firefox-a)" d="M47870 16735c-1044-2512-3160-5224-4820-6082 1352 2650 2134 5310 2433 7294l5 40c-2718-6773-7325-9505-11088-15452l-566-920a7372 7372 0 01-265-497 4370 4370 0 01-359-950 63 63 0 00-55-65 82 82 0 00-45 0l-12 7-17 10 10-14c-6037 3536-8085 10076-8274 13350a12025 12025 0 00-6614 2548 7136 7136 0 00-622-470 11134 11134 0 01-68-5873c-2468 1124-4390 2900-5785 4470h-10c-953-1206-886-5187-832-6018-10-52-710 363-802 425a17507 17507 0 00-2349 2012 21048 21048 0 00-2244 2692l-1 3v-3a20284 20284 0 00-3225 7280l-32 160a39700 39700 0 00-237 1500l-5 52a22907 22907 0 00-390 3316l-1 120c0 13270 10760 24030 24032 24030 11887 0 21756-8630 23690-19963l110-927c477-4120-53-8453-1560-12075zM20170 35545c113 53 220 112 334 164l16 10a12620 12620 0 01-350-174zm5506-14493zm19813-3060l-3-23 4 26z"/><use fill="url(#firefox-b)" href="#firefox-c"/><use fill="url(#firefox-d)" opacity=".35" href="#firefox-c"/><path fill="url(#firefox-e)" d="M36192 19560l150 110a13070 13070 0 00-2231-2911C26640 9290 32150 563 33080 120l10-13c-6037 3535-8085 10076-8273 13348 280-20 560-43 844-43 4505 0 8430 2477 10530 6150z"/><use fill="url(#firefox-f)" href="#firefox-g"/><use fill="url(#firefox-h)" href="#firefox-g"/><path fill="url(#firefox-i)" d="M17083 15204a24404 24404 0 01498 330 11134 11134 0 01-67-5874c-2470 1125-4390 2900-5785 4470 115-3 3600-66 5354 1074z"/><path fill="url(#firefox-j)" d="M1822 26240c1855 10960 11788 19325 23063 19644 10437 296 17104-5762 19858-11670 1780-3820 3016-10070 748-16218v-2l-4-24c-2-17-4-28-4-22l5 40c853 5566-1980 10958-6405 14604l-13 30c-8625 7023-16878 4237-18550 3097a14410 14410 0 01-350-174c-5028-2403-7105-6984-6660-10913-4245 0-5693-3580-5693-3580s3812-2718 8836-355c4653 2190 9023 355 9023 354-10-195-4192-1860-5822-3465-872-860-1285-1272-1652-1583a7136 7136 0 00-622-470 28293 28293 0 00-498-330c-1753-1140-5240-1076-5355-1073h-10c-953-1207-886-5187-832-6020-10-50-710 363-802 426a17507 17507 0 00-2349 2012 21048 21048 0 00-2244 2692l-1 3v-3a20284 20284 0 00-3225 7280c-10 52-865 3784-444 5720z"/><path fill="url(#firefox-k)" d="M34110 16760a13070 13070 0 012231 2910l360 296c5450 5020 2594 12120 2380 12626 4426-3646 7258-9038 6405-14604-2716-6774-7323-9506-11086-15453l-566-920a7372 7372 0 01-265-497 4370 4370 0 01-359-950 63 63 0 00-55-65 82 82 0 00-45 0l-12 7-17 10c-930 443-6440 9170 1030 16640z"/><path fill="url(#firefox-l)" d="M36702 19965a4743 4743 0 00-360-295l-150-110c-1283-900-3580-1792-5794-1407 8644 4322 6323 19203-5655 18640a10674 10674 0 01-3127-603 13451 13451 0 01-706-289 9064 9064 0 01-405-193l16 10c1670 1140 9924 3925 18550-3097l13-30c213-506 3068-7606-2380-12626z"/><path fill="url(#firefox-m)" d="M14844 27844s1110-4133 7943-4133c740 0 2850-2062 2890-2660s-4370 1836-9023-354c-5024-2363-8836 354-8836 354s1448 3580 5693 3580c-445 3930 1632 8510 6660 10913 113 53 218 112 334 164-2935-1517-5358-4384-5660-7865z"/><path fill="url(#firefox-n)" d="M47870 16735c-1044-2512-3160-5224-4820-6082 1352 2650 2134 5310 2433 7294l5 40c-2718-6773-7325-9505-11088-15452l-566-920a7372 7372 0 01-265-497 4370 4370 0 01-359-950 63 63 0 00-55-65 82 82 0 00-45 0l-12 7-17 10 10-14c-6037 3536-8085 10076-8274 13350 280-20 560-43 845-43 4505 0 8430 2477 10530 6148-1284-900-3580-1792-5795-1407 8644 4322 6323 19203-5655 18640a10674 10674 0 01-3127-603 13451 13451 0 01-706-289 9064 9064 0 01-405-193l17 10a14410 14410 0 01-350-174c112 53 218 112 333 164-2935-1517-5358-4384-5660-7865 0 0 1108-4133 7942-4133 740 0 2850-2062 2890-2660-10-195-4190-1860-5822-3465-870-860-1285-1272-1652-1583a7136 7136 0 00-623-470 11134 11134 0 01-67-5873c-2470 1124-4390 2900-5785 4470h-10c-953-1207-886-5187-832-6020-10-50-710 363-802 426a17507 17507 0 00-2349 2012 21048 21048 0 00-2243 2692l-1 3v-3a20284 20284 0 00-3225 7280l-32 160a39787 39787 0 00-277 1515c-2 18 2-17 0 0a27956 27956 0 00-355 3353l-3 122c0 13270 10760 24030 24032 24030 11887 0 21756-8630 23690-19963l110-927c477-4120-53-8453-1560-12075zm-2384 1234l4 26v-2l-4-24z"/></svg>
+                  Firefox
+                </button>
+                <button class="browser-btn" id="tab-safari">
+                  <svg class="browser-tab-icon icon-safari" viewBox="194.5 190.1 135.1 135.1" style="width:14px; height:14px; flex-shrink:0;">
+                    <style>.safari-b{color-interpolation-filters:srgb}.safari-c{flood-opacity:.31}</style>
+                    <defs>
+                      <linearGradient id="safari-a" x1="132.55" x2="134.37" y1="111.67" y2="-105.3" xlink:href="#safari-b"><stop offset="0" stop-color="#d2d2d2"/><stop offset=".53" stop-color="#f2f2f2"/><stop offset="1" stop-color="#fff"/></linearGradient>
+                      <linearGradient id="safari-b" gradientUnits="userSpaceOnUse"/>
+                      <linearGradient id="safari-c" x1="65.44" x2="67.4" y1="115.72" y2="17.14" xlink:href="#safari-b"><stop offset="0" stop-color="#005ad5"/><stop offset=".16" stop-color="#0875f0"/><stop offset=".31" stop-color="#218cee"/><stop offset=".63" stop-color="#27a5f3"/><stop offset=".81" stop-color="#25aaf2"/><stop offset="1" stop-color="#21aaef"/></linearGradient>
+                      <linearGradient id="safari-d" x1="158.7" x2="176.28" y1="96.71" y2="79.53" xlink:href="#safari-b"><stop offset="0" stop-color="#c72e24"/><stop offset="1" stop-color="#fd3b2f"/></linearGradient>
+                      <filter id="safari-e" class="safari-b"><feFlood flood-opacity=".28"/><feComposite in2="SourceGraphic" operator="in"/><feGaussianBlur stdDeviation="3"/><feOffset dx=".3" dy="2.8"/><feComposite in="SourceGraphic"/></filter>
+                      <filter id="safari-f" class="safari-b"><feFlood class="safari-c"/><feComposite class="safari-c" in2="SourceGraphic" operator="out"/><feGaussianBlur flood-opacity=".3" stdDeviation=".7"/><feOffset dy="1.8"/><feComposite in2="SourceGraphic" operator="atop"/></filter>
+                      <filter id="safari-g" class="safari-b"><feFlood flood-opacity=".61"/><feComposite in2="SourceGraphic" operator="in"/><feGaussianBlur stdDeviation=".5"/><feOffset dx=".8" dy=".8"/><feComposite in="SourceGraphic" result="A"/><feColorMatrix values="0 0 0 -1 0 0 0 0 -1 0 0 0 0 -1 0 0 0 0 1 0"/><feFlood flood-opacity=".4"/><feComposite in2="A" operator="in"/><feGaussianBlur stdDeviation="3.8"/><feOffset dx="2.3" dy="3.3"/><feComposite in="A"/></filter>
+                      <filter id="safari-h" width="110%" height="110%" x="-1%" y="-1%"><feGaussianBlur in="SourceAlpha" stdDeviation=".4"/><feOffset dx=".1" dy=".2"/><feComponentTransfer result="A"><feFuncA type="linear"/></feComponentTransfer><feFlood flood-color="rgba(0,0,0,0.5)"/><feComposite in2="A" operator="in"/><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+                      <radialGradient id="safari-i" cx="-69.88" cy="69.29" r="54.01" gradientTransform="matrix(.9023 -.01249 .0377 2.7234 -9.44 -120.29)" xlink:href="#safari-b"><stop offset="0" stop-color="#24a5f3" stop-opacity=".01"/><stop offset="1" stop-color="#1e8ceb" stop-opacity=".98"/></radialGradient>
+                      <radialGradient id="safari-j" cx="109.35" cy="13.76" r="93.08" gradientTransform="matrix(-.01822 1.0922 -1.042 -.01765 136.95 -115.33)" xlink:href="#safari-b"><stop offset="0" stop-opacity="0"/><stop offset=".96" stop-color="#5488d6" stop-opacity="0"/><stop offset="1" stop-color="#5d96eb"/></radialGradient>
+                    </defs>
+                    <rect width="220" height="220" x="22" y="-106.53" fill="url(#safari-a)" filter="url(#safari-e)" ry="49" transform="matrix(.56938 0 0 .56921 186.86 255.75)"/>
+                    <g filter="url(#safari-f)" transform="translate(194.2 190.07)">
+                      <ellipse cx="67.77" cy="67.73" fill="url(#safari-c)" paint-order="stroke fill markers" rx="54.01" ry="53.98"/>
+                      <ellipse cx="-69.88" cy="69.29" fill="url(#safari-i)" rx="54.01" ry="53.98" transform="translate(137.65 -1.55)"/>
+                    </g>
+                    <ellipse cx="120" cy="14.15" fill="url(#safari-j)" rx="93.08" ry="93.67" transform="matrix(.58082 0 0 .57636 192.3 249.63)"/>
+                    <g filter="url(#safari-g)" transform="matrix(.58289 0 0 .56508 196.8 181.63)">
+                      <path fill="#cac7c8" d="m46 191.66.73.35 72.18-48.2-7.34-8.95L46 191.66Z"/>
+                      <path fill="#fbfffc" d="m45.8 190.87.2.8 65.57-56.8-6.95-8.92-58.83 64.92Z"/>
+                      <path fill="url(#safari-d)" d="m118.91 143.81-7.35-8.95 66.08-57.2.27.73-59 65.42Z"/>
+                      <path fill="#fb645c" d="m104.62 125.95 6.94 8.92 66.08-57.2-.65-.35-72.37 48.63Z"/>
+                    </g>
+                    <path stroke="#fff" stroke-linecap="round" stroke-miterlimit="1" stroke-width="1.33" d="m286.59 278.44 3.14-2.14m-11.23-17.8 7.8-1.37m-8.32-2.9 3.78-.3m-3.3-12.47 7.8 1.38m-8.2 3.03 3.76.38m-1.2-13.05 7.47 2.73m-3.77-10.5 6.86 3.96m-1.87-10.96 6.07 5.09m.05-11.07 5.09 6.07m1.97-10.99 3.97 6.86m3.7-10.53 2.71 7.43m5.62-9.62 1.37 7.8m15.62-7.89-1.38 7.8m9.82-5.6-2.72 7.42m10.5-3.75-3.96 6.86m10.98-1.89-5.12 6.07m16.18 6.96-6.87 3.96m10.45 3.88-7.45 2.7m9.64 5.6-7.82 1.38m7.81 15.79-7.82-1.39m5.6 9.7-7.44-2.71m3.8 10.47-6.87-3.95m1.91 10.98-6.07-5.07m-.05 11.2-5.1-6.08m-1.95 10.99-4-6.88m-3.87 10.5-2.7-7.43m-5.61 9.61-1.37-7.78m-15.78 7.75 1.4-7.86m-9.7 5.58 2.72-7.47m-10.5 3.73 3.97-6.87m-10.96 1.9 5.08-6.03m-8.26 3.13 2.75-2.68m3.84 8.23 2.2-3.1m5.2 7.44 1.66-3.45m6.43 6.47 1.02-3.7m7.52 5.32.43-3.82m8.08 3.8-.31-3.84m8.81 2.33-.97-3.69m9.06.75-1.58-3.48m9.05-.76-2.16-3.18m8.78-2.38-2.68-2.73m8.24-3.85-3.11-2.2m7.42-5.2-3.47-1.67m6.42-6.41-3.7-1.03m5.17-7.46-3.78-.37m3.8-8.24-3.81.3m2.35-8.8-3.7.97m.8-9.06-3.49 1.61m-1.03-9.12-3.2 2.2m-2.12-8.62-2.72 2.7m-3.84-8.28-2.23 3.12m-5.21-7.45-1.66 3.44m-6.55-6.32-1.02 3.63m-7.42-5.2-.38 3.81m-8.09-3.66.28 3.8m-8.79-2.34.95 3.68m-8.9-.72 1.61 3.46m-9.06.82 2.18 3.16m-8.82 2.27 2.68 2.7m-8.25 3.85 3.1 2.23m-7.44 5.17 3.42 1.66m-6.3 6.36 3.7 1.05m-3.71 24.39 3.7-.91m-2.44 5.03 7.48-2.72m-5.86 6.73 3.5-1.61m-1.53 5.43 6.87-3.95m-13.33-20.52 7.96.01m41.16-41.44v-7.96m.02 98.74.01-7.94m49.33-41.4-7.95-.01" filter="url(#safari-h)" transform="translate(-65 7.73)"/>
+                  </svg>
+                  Safari
+                </button>
+              </div>
+
+              <!-- Steps Container -->
+              <div class="browser-steps-container">
+                <!-- Chrome Steps -->
+                <div class="browser-steps active" id="steps-chrome">
+                  <ol class="ordered-steps">
+                    <li>Open Chrome and navigate to <code class="url-code">chrome://extensions</code></li>
+                    <li>Toggle the <strong>Developer mode</strong> switch in the top-right corner.</li>
+                    <li>Click the <strong>Load unpacked</strong> button in the top-left corner.</li>
+                    <li>Select the extracted folder containing the <code class="file-name">manifest.json</code> file.</li>
+                  </ol>
+                </div>
+
+                <!-- Edge Steps -->
+                <div class="browser-steps" id="steps-edge">
+                  <ol class="ordered-steps">
+                    <li>Open Microsoft Edge and navigate to <code class="url-code">edge://extensions</code></li>
+                    <li>Enable the <strong>Developer mode</strong> toggle switch at the bottom of the left sidebar.</li>
+                    <li>Click the <strong>Load unpacked</strong> button at the top of the page.</li>
+                    <li>Choose the extracted folder containing the <code class="file-name">manifest.json</code> file.</li>
+                  </ol>
+                </div>
+
+                <!-- Brave Steps -->
+                <div class="browser-steps" id="steps-brave">
+                  <ol class="ordered-steps">
+                    <li>Open Brave Browser and navigate to <code class="url-code">brave://extensions</code></li>
+                    <li>Switch on the <strong>Developer mode</strong> toggle in the top-right toolbar.</li>
+                    <li>Click the <strong>Load unpacked</strong> button on the top menu.</li>
+                    <li>Browse and select the extracted folder directory.</li>
+                  </ol>
+                </div>
+
+                <!-- Firefox Steps -->
+                <div class="browser-steps" id="steps-firefox">
+                  <ol class="ordered-steps">
+                    <li>Open Firefox and navigate to <code class="url-code">about:debugging#/runtime/this-firefox</code></li>
+                    <li>Click the <strong>Load Temporary Add-on...</strong> button.</li>
+                    <li>Navigate into the extracted folder and select the <code class="file-name">manifest.json</code> file to load.</li>
+                  </ol>
+                </div>
+
+                <!-- Safari Steps -->
+                <div class="browser-steps" id="steps-safari">
+                  <ol class="ordered-steps">
+                    <li>Open Safari, open <strong>Settings</strong> > <strong>Advanced</strong>, and enable <strong>Show features for web developers</strong>.</li>
+                    <li>Choose <strong>Show Extension Builder</strong> from the <strong>Developer</strong> menu.</li>
+                    <li>Since Safari requires native App packaging, use Xcode's converter tool in the Terminal:
+                      <pre class="terminal-box"><code>xcrun safari-web-extension-converter /path/to/extracted-folder</code></pre>
+                    </li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Column: Sidebar Navigation -->
+      <aside class="docs-sidebar">
+        <div class="sidebar-block">
+          <h4 class="sidebar-heading">Guides</h4>
+          <ul class="sidebar-links">
+            <li><a href="#" class="sidebar-link active">Installation Guide</a></li>
+            <li><a href="/src/options/options.html" class="sidebar-link">Extension Settings</a></li>
+          </ul>
+        </div>
+      </aside>
+
+    </div>
+  </main>
+
+  <footer class="docs-footer">
+    <div class="footer-container">
+      <p>&copy; 2026 Lycoris. Clean developer setup guide.</p>
+    </div>
+  </footer>
+
+  <script src="guide.js" type="module"></script>
+</body>
+</html>

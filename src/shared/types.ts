@@ -82,6 +82,20 @@ export interface ImageGenerationProvider {
 export type ImageFormat = 'png' | 'jpg' | 'webp' | 'avif' | 'tiff' | 'def';
 
 export interface ProcessingOptions {
+  /** Optional custom AI background removal API URL */
+  customBgRemovalUrl?: string;
+  /** Image processing mode (local JS canvas vs Python FastAPI server) */
+  imageProcessingMode?: 'local' | 'api';
+  /** Internal flag indicating if background removal is requested */
+  bgRemoveFlag?: boolean;
+  /** Internal flag indicating if transparent cropping is requested */
+  cropFlag?: boolean;
+  /** Internal flag indicating if background color filling is requested */
+  bgColorEnableFlag?: boolean;
+  /** Internal background color hex value */
+  bgColorValueFlag?: string;
+  /** If true, use scale-to-fit (contain) instead of crop-to-fill (cover) for WxH resolutions */
+  containFit?: boolean;
   /** Output image format */
   format: ImageFormat;
   /** Quality 1-100 (applicable to jpg and webp) */
@@ -191,6 +205,8 @@ export interface ExtensionSettings {
   authorName: string;
   /** Custom AI Background Removal API URL (e.g. http://localhost:8000/remove-bg) */
   customBgRemovalUrl?: string;
+  /** Image processing mode (local JS canvas vs Python FastAPI server) */
+  imageProcessingMode?: 'local' | 'api';
 }
 
 // ─── ChatGPT Detection ────────────────────────────────────────

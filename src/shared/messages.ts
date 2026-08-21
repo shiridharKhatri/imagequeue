@@ -36,6 +36,7 @@ export const MSG = {
   // Service Worker → Popup (broadcast)
   QUEUE_STATUS_UPDATE: 'QUEUE_STATUS_UPDATE',
   LOG_ENTRY: 'LOG_ENTRY',
+  OFFSCREEN_LOG: 'OFFSCREEN_LOG',
 
   // Service Worker → Content Script
   GENERATE_IMAGE: 'GENERATE_IMAGE',

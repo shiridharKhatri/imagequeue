@@ -2,6 +2,7 @@ import JSZip from 'jszip';
 import type { ProcessingOptions, ImageFormat } from '../shared/types';
 import { imageStore } from '../storage/image-store';
 import { removeBackground, cropTransparent, fillBackgroundColor } from '../processing/image-processor';
+import { logger } from '../shared/logger';
 
 /**
  * Offscreen document script.
@@ -99,34 +100,51 @@ async function handleProcessImages(
     const isBgColor = options.bgColorEnable?.[item.id] || false;
     const bgColor = options.bgColorValue?.[item.id] || '#ffffff';
 
+    logger.info(`[offscreen] handleProcessImages: Item ${i + 1} (${item.id}): isBgRemove=${isBgRemove}, isCrop=${isCrop}, isBgColor=${isBgColor}`);
+
     const itemResolution = (options.customResolutions && options.customResolutions[item.id]) || options.resolution;
 
-    let processed = await processImage(stored.blob, {
-      ...options,
-      resolution: itemResolution,
-      metadata: itemMetadata,
-    });
-
-    if (isBgRemove) {
-      processed = await removeBackground(processed);
-    }
-    if (isCrop) {
-      processed = await cropTransparent(processed);
-    }
-    if (isBgColor) {
-      processed = await fillBackgroundColor(processed, bgColor);
-    }
-
+    // Determine target format
     let fmt = (isBgRemove || isCrop) && !isBgColor ? 'png' : options.format;
     if (fmt === 'def') {
       fmt = getExtensionFromMime(stored.blob.type) as ImageFormat;
     }
-    const ext = formatToExtension(fmt);
 
-    // Re-inject metadata if background removal, cropping, or bg color stripped it
-    if (isBgRemove || isCrop || isBgColor) {
-      processed = await injectMetadata(processed, fmt, itemMetadata);
+    let processed = stored.blob;
+
+    if (options.imageProcessingMode === 'api') {
+      processed = await processImage(processed, {
+        ...options,
+        format: fmt,
+        resolution: itemResolution,
+        metadata: itemMetadata,
+        containFit: isBgRemove || isCrop,
+        bgRemoveFlag: isBgRemove,
+        cropFlag: isCrop,
+        bgColorEnableFlag: isBgColor,
+        bgColorValueFlag: bgColor,
+      });
+    } else {
+      if (isBgRemove) {
+        processed = await removeBackground(processed, options.customBgRemovalUrl);
+      }
+      if (isCrop) {
+        processed = await cropTransparent(processed);
+      }
+      if (isBgColor) {
+        processed = await fillBackgroundColor(processed, bgColor);
+      }
+
+      processed = await processImage(processed, {
+        ...options,
+        format: fmt,
+        resolution: itemResolution,
+        metadata: itemMetadata,
+        containFit: isBgRemove || isCrop,
+      });
     }
+
+    const ext = formatToExtension(fmt);
 
     // Choose custom name if specified, otherwise index-based
     let filename = '';
@@ -146,6 +164,7 @@ async function handleProcessImages(
     compressionOptions: { level: 6 },
   });
 
+  await logger.flush();
   return { zipBlob, fileCount: items.length };
 }
 
@@ -153,7 +172,15 @@ async function handleBuildZip(
   req: BuildZipRequest
 ): Promise<{ blobUrl: string; filename: string }> {
   const { items, options } = req;
-  console.log('[offscreen] handleBuildZip options:', options);
+  logger.info(`[offscreen] handleBuildZip started. Items count: ${items.length}, Options defined: ${!!options}`);
+  if (options) {
+    logger.info(`[offscreen] Options payload:`, {
+      format: options.format,
+      resolution: options.resolution,
+      bgRemoveKeys: Object.keys(options.bgRemove || {}),
+      cropKeys: Object.keys(options.crop || {}),
+    });
+  }
   const zip = new JSZip();
 
   for (let i = 0; i < items.length; i++) {
@@ -190,34 +217,51 @@ async function handleBuildZip(
       const isBgColor = options.bgColorEnable?.[item.id] || false;
       const bgColor = options.bgColorValue?.[item.id] || '#ffffff';
 
+      logger.info(`[offscreen] Item ${i + 1} (${item.id}): isBgRemove=${isBgRemove}, isCrop=${isCrop}, isBgColor=${isBgColor}`);
+
       const itemResolution = (options.customResolutions && options.customResolutions[item.id]) || options.resolution;
 
-      blob = await processImage(stored.blob, {
-        ...options,
-        resolution: itemResolution,
-        metadata: itemMetadata,
-      });
-
-      if (isBgRemove) {
-        blob = await removeBackground(blob);
-      }
-      if (isCrop) {
-        blob = await cropTransparent(blob);
-      }
-      if (isBgColor) {
-        blob = await fillBackgroundColor(blob, bgColor);
-      }
-
+      // Determine target format
       let fmt = (isBgRemove || isCrop) && !isBgColor ? 'png' : options.format;
       if (fmt === 'def') {
         fmt = getExtensionFromMime(stored.blob.type) as ImageFormat;
       }
-      ext = formatToExtension(fmt);
 
-      // Re-inject metadata if background removal, cropping, or bg color stripped it
-      if (isBgRemove || isCrop || isBgColor) {
-        blob = await injectMetadata(blob, fmt, itemMetadata);
+      blob = stored.blob;
+
+      if (options.imageProcessingMode === 'api') {
+        blob = await processImage(blob, {
+          ...options,
+          format: fmt,
+          resolution: itemResolution,
+          metadata: itemMetadata,
+          containFit: isBgRemove || isCrop,
+          bgRemoveFlag: isBgRemove,
+          cropFlag: isCrop,
+          bgColorEnableFlag: isBgColor,
+          bgColorValueFlag: bgColor,
+        });
+      } else {
+        if (isBgRemove) {
+          blob = await removeBackground(blob, options?.customBgRemovalUrl);
+        }
+        if (isCrop) {
+          blob = await cropTransparent(blob);
+        }
+        if (isBgColor) {
+          blob = await fillBackgroundColor(blob, bgColor);
+        }
+
+        blob = await processImage(blob, {
+          ...options,
+          format: fmt,
+          resolution: itemResolution,
+          metadata: itemMetadata,
+          containFit: isBgRemove || isCrop,
+        });
       }
+
+      ext = formatToExtension(fmt);
     }
 
     let filename = '';
@@ -240,6 +284,7 @@ async function handleBuildZip(
   const blobUrl = URL.createObjectURL(zipBlob);
   const filename = `${options?.filenamePrefix || 'image'}-images.zip`;
 
+  await logger.flush();
   return { blobUrl, filename };
 }
 
@@ -275,34 +320,51 @@ async function handleProcessSingleImage(
   const isBgColor = options.bgColorEnable?.[itemId] || false;
   const bgColor = options.bgColorValue?.[itemId] || '#ffffff';
 
+  logger.info(`[offscreen] handleProcessSingleImage: isBgRemove=${isBgRemove}, isCrop=${isCrop}, isBgColor=${isBgColor}`);
+
   const itemResolution = (options.customResolutions && options.customResolutions[itemId]) || options.resolution;
 
-  let processed = await processImage(stored.blob, {
-    ...options,
-    resolution: itemResolution,
-    metadata: itemMetadata,
-  });
-
-  if (isBgRemove) {
-    processed = await removeBackground(processed);
-  }
-  if (isCrop) {
-    processed = await cropTransparent(processed);
-  }
-  if (isBgColor) {
-    processed = await fillBackgroundColor(processed, bgColor);
-  }
-
+  // Determine target format
   let fmt = (isBgRemove || isCrop) && !isBgColor ? 'png' : options.format;
   if (fmt === 'def') {
     fmt = getExtensionFromMime(stored.blob.type) as ImageFormat;
   }
-  const ext = formatToExtension(fmt);
 
-  // Re-inject metadata if background removal, cropping, or bg color stripped it
-  if (isBgRemove || isCrop || isBgColor) {
-    processed = await injectMetadata(processed, fmt, itemMetadata);
+  let processed = stored.blob;
+
+  if (options.imageProcessingMode === 'api') {
+    processed = await processImage(processed, {
+      ...options,
+      format: fmt,
+      resolution: itemResolution,
+      metadata: itemMetadata,
+      containFit: isBgRemove || isCrop,
+      bgRemoveFlag: isBgRemove,
+      cropFlag: isCrop,
+      bgColorEnableFlag: isBgColor,
+      bgColorValueFlag: bgColor,
+    });
+  } else {
+    if (isBgRemove) {
+      processed = await removeBackground(processed, options.customBgRemovalUrl);
+    }
+    if (isCrop) {
+      processed = await cropTransparent(processed);
+    }
+    if (isBgColor) {
+      processed = await fillBackgroundColor(processed, bgColor);
+    }
+
+    processed = await processImage(processed, {
+      ...options,
+      format: fmt,
+      resolution: itemResolution,
+      metadata: itemMetadata,
+      containFit: isBgRemove || isCrop,
+    });
   }
+
+  const ext = formatToExtension(fmt);
 
   let filename = '';
   if (options.customFilenames && options.customFilenames[itemId]) {
@@ -312,6 +374,7 @@ async function handleProcessSingleImage(
   }
 
   const blobUrl = URL.createObjectURL(processed);
+  await logger.flush();
   return { blobUrl, filename };
 }
 
@@ -322,6 +385,9 @@ async function processImage(
   inputBlob: Blob,
   options: ProcessingOptions
 ): Promise<Blob> {
+  if (options.imageProcessingMode === 'api') {
+    return processImageViaApi(inputBlob, options);
+  }
   const bitmap = await createImageBitmap(inputBlob);
   let targetWidth = bitmap.width;
   let targetHeight = bitmap.height;
@@ -839,10 +905,30 @@ async function injectMetadata(
     return new Blob([newBytes], { type: 'image/jpeg' });
   }
 
-  if (format === 'webp' && width && height) {
+  if (format === 'webp') {
     if (bytes[0] !== 0x52 || bytes[1] !== 0x49 || bytes[2] !== 0x46 || bytes[3] !== 0x46 || // RIFF
       bytes[8] !== 0x57 || bytes[9] !== 0x45 || bytes[10] !== 0x42 || bytes[11] !== 0x50) { // WEBP
       return blob; // Invalid WebP
+    }
+
+    let imgWidth = width;
+    let imgHeight = height;
+    if (!imgWidth || !imgHeight) {
+      try {
+        const bitmap = await createImageBitmap(blob);
+        imgWidth = bitmap.width;
+        imgHeight = bitmap.height;
+        bitmap.close();
+      } catch (err) {
+        chrome.runtime.sendMessage({
+          type: 'LOG_ENTRY',
+          payload: {
+            level: 'ERROR',
+            message: `[injectMetadata] Failed to decode WebP dimensions: ${err}`
+          }
+        }).catch(() => {});
+        return blob;
+      }
     }
 
     const app1Block = createExifApp1(metadata);
@@ -866,7 +952,7 @@ async function injectMetadata(
       type: 'LOG_ENTRY',
       payload: {
         level: 'INFO',
-        message: `[Offscreen WebP] Injecting metadata. Width: ${width}, Height: ${height}, app1Block size: ${app1Block.length}`,
+        message: `[Offscreen WebP] Injecting metadata. Width: ${imgWidth}, Height: ${imgHeight}, app1Block size: ${app1Block.length}`,
         data: { metadata }
       }
     }).catch(() => { });
@@ -903,12 +989,12 @@ async function injectMetadata(
 
       vp8xChunk[8] = 0x08 | hasAlpha; // EXIF metadata flag
 
-      const w = width - 1;
+      const w = imgWidth - 1;
       vp8xChunk[12] = w & 0xff;
       vp8xChunk[13] = (w >> 8) & 0xff;
       vp8xChunk[14] = (w >> 16) & 0xff;
 
-      const h = height - 1;
+      const h = imgHeight - 1;
       vp8xChunk[15] = h & 0xff;
       vp8xChunk[16] = (h >> 8) & 0xff;
       vp8xChunk[17] = (h >> 16) & 0xff;
@@ -925,6 +1011,60 @@ async function injectMetadata(
   }
 
   return blob;
+}
+
+async function processImageViaApi(
+  inputBlob: Blob,
+  options: ProcessingOptions
+): Promise<Blob> {
+  const apiUrl = (options.customBgRemovalUrl || 'http://localhost:8000').trim();
+  let baseUrl = apiUrl.replace(/\/remove-bg\/?$/, '').replace(/\/$/, '');
+  const processUrl = `${baseUrl}/process-image`;
+
+  const formData = new FormData();
+  formData.append('file', inputBlob, 'image.png');
+  formData.append('bg_remove', String(options.bgRemoveFlag || false));
+  formData.append('crop', String(options.cropFlag || false));
+  if (options.bgColorEnableFlag && options.bgColorValueFlag) {
+    formData.append('bg_color', options.bgColorValueFlag);
+  }
+  formData.append('resolution', options.resolution || '0');
+  formData.append('contain_fit', String(options.containFit || false));
+  formData.append('format', options.format || 'webp');
+  formData.append('quality', String(options.quality || 90));
+  if (options.targetSizeKb) {
+    formData.append('target_size_kb', String(options.targetSizeKb));
+  }
+
+  if (options.metadata) {
+    const meta = options.metadata;
+    if (meta.title) formData.append('title', meta.title);
+    if (meta.author) formData.append('author', meta.author);
+    if (meta.description) formData.append('description', meta.description);
+    if (meta.make) formData.append('make', meta.make);
+    if (meta.model) formData.append('model', meta.model);
+    if (meta.lensModel) formData.append('lens_model', meta.lensModel);
+    if (meta.software) formData.append('software', meta.software);
+    if (meta.copyright) formData.append('copyright', meta.copyright);
+    if (meta.dateTimeOriginal) formData.append('date_time_original', meta.dateTimeOriginal);
+    if (meta.gpsLatitude) formData.append('gps_latitude', meta.gpsLatitude);
+    if (meta.gpsLongitude) formData.append('gps_longitude', meta.gpsLongitude);
+  }
+
+  logger.info(`[offscreen] processImageViaApi: Requesting ${processUrl} ...`);
+  const response = await fetch(processUrl, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Python API Error (${response.status}): ${errText}`);
+  }
+
+  const outBlob = await response.blob();
+  logger.info(`[offscreen] processImageViaApi success. Blob size: ${outBlob.size}`);
+  return outBlob;
 }
 
 // ─── Helpers ───────────────────────────────────────────────────

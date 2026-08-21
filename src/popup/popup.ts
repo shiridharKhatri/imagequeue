@@ -3,6 +3,7 @@ import {
   sendToBackground,
   type ExtensionMessage,
 } from '../shared/messages';
+import { logger } from '../shared/logger';
 import type {
   QueueData,
   QueueItem,
@@ -14,12 +15,15 @@ import { computeQueueStats, STATUS_DISPLAY } from '../queue/queue-types';
 import { imageStore } from '../storage/image-store';
 import { settingsStorage } from '../storage/storage';
 import { uploadToWordPressMedia, blobToBase64 } from '../api/wp-uploader';
-import { processImage, removeBackground, cropTransparent } from '../processing/image-processor';
+import { removeBackground, cropTransparent } from '../processing/image-processor';
 
 // ─── DOM References ────────────────────────────────────────────
 
 const $ = <T extends HTMLElement>(id: string): T =>
   document.getElementById(id) as T;
+
+let cachedBgRemovalUrl = 'http://localhost:8000';
+let cachedImageProcessingMode: 'local' | 'api' = 'local';
 
 const viewInput = $<HTMLElement>('view-input');
 const viewQueue = $<HTMLElement>('view-queue');
@@ -56,6 +60,7 @@ const btnDownloadZip = $<HTMLButtonElement>('btn-download-zip');
 const btnUploadWP = $<HTMLButtonElement>('btn-upload-wp');
 const btnDownloadIndividual = $<HTMLButtonElement>('btn-download-individual');
 const btnNewBatch = $<HTMLButtonElement>('btn-new-batch');
+const popupProcessingModeSelect = $<HTMLSelectElement>('popup-processing-mode');
 
 const exifDeviceSelect = $<HTMLSelectElement>('exif-device-select');
 const debugLogsEntries = $<HTMLElement>('debug-logs-entries');
@@ -87,11 +92,11 @@ const productNameInput = $<HTMLInputElement>('product-name-input');
 
 const DEFAULT_PROMPTS_TEMPLATES = [
   `Create a hyper-realistic, candid-style photo of a single human hand holding a product labeled "[product]".\n🔹 Composition: Only the hand is visible (from mid-forearm down), natural skin texture with subtle imperfections, no jewelry or nail polish. Product is clearly visible and centered in the hand, with "[product]" legible on packaging. Tight crop on hand + product: no face, no full body.\n🔹 Background (CRITICAL): Set in a realistic, lived-in indoor room (e.g., cozy living room, bedroom corner, or home office). Background must be VISIBLE and IN-FOCUS (no heavy blur/bokeh) — show authentic environmental details: slightly rumpled couch or bed sheets, a coffee mug, books, or charging cables, plant.\n🔹 Aesthetic & Technical Style: Shot on a modern smartphone (iPhone/Android style): slight lens distortion, natural dynamic range, mild noise/grain. Warm ambient lighting.\n🔹 Output Specs: Resolution: 1200x628 pixels. Format: JPG-style compression.`,
-  `Create a hyper-realistic photo of "[product]" being used. Show the open bottle with the lid open, next to a hand holding capsules, captured casually on a smartphone. Warm ambient lighting, cozy home environment in the background. Resolution: 1200x628 pixels. Format: JPG-style compression.`,
+  `Create a hyper-realistic photo of "[product]" being used or opened, captured casually on a smartphone. Warm ambient lighting, cozy home environment in the background. Resolution: 1200x628 pixels. Format: JPG-style compression.`,
   `Generate a realistic image of "[product]" unboxed on a surface. Include realistic evidence of the original shipping package (e.g., torn shipping box, packing paper, utility-knife cut along the top seam, open box flaps) resting in the background or side. Product packaging remains the main focus. Packing material naturally disturbed, spilling from open flap. Product is slightly off-center, casual positioning. Casual smartphone photo, natural ambient lighting.\n🔹 Output Specs: Resolution: 1200x628 pixels. Format: JPG-style compression.`,
   `Create a realistic BEFORE AND AFTER comparison image for "[product]" using a side-by-side comparison (BEFORE on the left, AFTER on the right). Both panels must depict the same subject (person, body part, or environment) with similar framing and composition. Preserve identity, skin tone, hair color, and general environment. Only the intended improvement changes. Subtle differences in lighting, posture, wrinkles, and background details are allowed to show separate moments in time (temporal evolution). Smartphone photo realism.`,
   `Create a professional widescreen feature image of a single "[product]" package centered against a clean, solid background in a color that matches and complements the product's branding and packaging color. Sharp details, centered studio composition. Resolution: 1200x628 pixels. Widescreen 16:9 aspect ratio. Format: JPG-style compression.`,
-  `Create a professional product image of a single "[product]" bottle against a clean, solid background in a color that matches and complements the product's packaging and branding color. Sharp details, centered studio composition. Resolution: 300x300 pixels. Square 1:1 aspect ratio. Format: JPG-style compression.`
+  `Create a professional product image of a single "[product]" package or container against a clean, solid background in a color that matches and complements the product's packaging and branding color. Sharp details, centered studio composition. Resolution: 300x300 pixels. Square 1:1 aspect ratio. Format: JPG-style compression.`
 ];
 
 const referenceImageInput = $<HTMLInputElement>('reference-image-input');
@@ -555,10 +560,6 @@ async function showBatchView(queue: QueueData): Promise<void> {
     let defaultRes = 'default';
     if (saved && saved.customResolutions && saved.customResolutions[item.id]) {
       defaultRes = saved.customResolutions[item.id];
-    } else if (isProductImg) {
-      defaultRes = '340x340';
-    } else if (isFeatureImg) {
-      defaultRes = '872x560';
     }
 
     let defaultBgMode = isProductImg ? 'transparent' : 'original';
@@ -665,7 +666,7 @@ async function showBatchView(queue: QueueData): Promise<void> {
       let blob = storedImage.blob;
       if (isBg) {
         try {
-          blob = await removeBackground(blob);
+          blob = await removeBackground(blob, cachedBgRemovalUrl);
         } catch (e) {
           console.error('BG removal failed:', e);
         }
@@ -847,7 +848,15 @@ function getProcessingOptions(): ProcessingOptions {
     }
   });
 
-  console.log('[popup] getProcessingOptions collected:', { bgRemove, crop, customResolutions, bgColorEnable, bgColorValue });
+  logger.info('[popup] getProcessingOptions collected:', {
+    bgRemoveKeys: Object.keys(bgRemove),
+    bgRemoveValues: Object.values(bgRemove),
+    cropKeys: Object.keys(crop),
+    cropValues: Object.values(crop),
+    customResolutions,
+    bgColorEnable,
+    bgColorValue
+  });
 
   // Collect individual custom metadata
   const customMetadata: Record<string, any> = {};
@@ -876,6 +885,8 @@ function getProcessingOptions(): ProcessingOptions {
   }
 
   return {
+    customBgRemovalUrl: cachedBgRemovalUrl,
+    imageProcessingMode: cachedImageProcessingMode,
     format: (formatInput?.value as ImageFormat) || 'webp',
     quality: parseInt(qualityInput.value) || 90,
     targetSizeKb: parseInt(targetSizeInput.value) || undefined,
@@ -1065,36 +1076,26 @@ async function handleUploadWP(): Promise<void> {
       const item = completedItems[i];
       btnUploadWP.innerHTML = `<div class="spinner"></div> Uploading ${i + 1}/${completedItems.length}...`;
 
-      // Get image blob from IndexedDB imageStore
-      const storedImage = await imageStore.get(item.id);
-      if (!storedImage) {
-        throw new Error(`Failed to find image data for prompt ${i + 1}`);
+      // Call offscreen document to process single image (handles sizing, formats, quality, metadata injection, background removal, crop, adjustments etc. perfectly)
+      const response = await sendToBackground<{ blobUrl?: string; filename?: string; error?: string }>(
+        MSG.PROCESS_SINGLE_IMAGE,
+        { itemId: item.id, options, prompt: item.prompt }
+      );
+
+      if (!response || response.error || !response.blobUrl) {
+        throw new Error(response?.error || `Failed to process image ${i + 1} in offscreen document`);
       }
 
-      // Process/compress the image
-      let processedBlob = await processImage(storedImage.blob, options);
-
-      // Check if BG Remove and Crop toggles are checked for this card
-      const bgCheck = batchImageList.querySelector(`.batch-bg-remove-check[data-id="${item.id}"]`) as HTMLInputElement | null;
-      const cropCheck = batchImageList.querySelector(`.batch-crop-check[data-id="${item.id}"]`) as HTMLInputElement | null;
-      const isBgRemove = bgCheck?.checked || false;
-      const isCrop = cropCheck?.checked || false;
-
-      if (isBgRemove) {
-        processedBlob = await removeBackground(processedBlob);
-      }
-      if (isCrop) {
-        processedBlob = await cropTransparent(processedBlob);
-      }
+      // Fetch processed blob from the blobUrl
+      const res = await fetch(response.blobUrl);
+      const processedBlob = await res.blob();
 
       // Convert processed blob to base64 data URL
       const base64Data = await blobToBase64(processedBlob);
 
       // Suffix/filename logic
-      const suffix = getIntelligentSuffix(item.prompt, i);
-      const customName = (options.customFilenames && options.customFilenames[item.id]) || `${prefix}-${suffix}`;
-      const fileExt = (isBgRemove || isCrop) ? 'png' : options.format;
-      const filename = `${customName}.${fileExt}`;
+      const filename = response.filename || `${prefix}-${getIntelligentSuffix(item.prompt, i)}.webp`;
+      const customName = filename.replace(/\.[a-z0-9]+$/i, '');
 
       const itemMetadata = (options.customMetadata && options.customMetadata[item.id]) || options.metadata;
 
@@ -1292,6 +1293,19 @@ async function loadActiveReferenceImage(): Promise<void> {
 }
 
 async function init(): Promise<void> {
+  try {
+    const settings = await settingsStorage.load();
+    if (settings) {
+      if (settings.customBgRemovalUrl) {
+        cachedBgRemovalUrl = settings.customBgRemovalUrl;
+      }
+      cachedImageProcessingMode = settings.imageProcessingMode || 'local';
+      popupProcessingModeSelect.value = cachedImageProcessingMode;
+    }
+  } catch (err) {
+    console.error('Failed to load customBgRemovalUrl settings in init:', err);
+  }
+
   // Populate dropdown preset list first so it's always ready
   populateDeviceDropdown();
 
@@ -1430,6 +1444,19 @@ providerSelect.addEventListener('change', async () => {
 
 btnSettings.addEventListener('click', () => {
   chrome.runtime.openOptionsPage();
+});
+
+popupProcessingModeSelect.addEventListener('change', async () => {
+  const val = popupProcessingModeSelect.value as 'local' | 'api';
+  cachedImageProcessingMode = val;
+  try {
+    const settings = await settingsStorage.load();
+    settings.imageProcessingMode = val;
+    await settingsStorage.save(settings);
+    showBanner('success', `Processing engine set to: ${val === 'api' ? 'Python API' : 'Local Browser'}`);
+  } catch (err) {
+    console.error('Failed to save processing mode from popup:', err);
+  }
 });
 
 btnDownloadZip.addEventListener('click', handleDownloadZip);
