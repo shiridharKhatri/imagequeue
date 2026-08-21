@@ -459,14 +459,13 @@ function showBatchView(queue: QueueData): void {
             <svg class="batch-image-type-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
           </div>
         </div>
-        <div class="batch-image-details">
-          <div style="display:flex; justify-content:space-between; align-items:center; gap:var(--space-sm); margin-bottom:2px;">
-            <div class="batch-image-prompt" title="${escapeHtml(item.prompt)}" style="flex:1; white-space:nowrap; text-overflow:ellipsis; overflow:hidden;">${escapeHtml(item.prompt)}</div>
+        <div class="batch-image-details" title="${escapeHtml(item.prompt)}">
+          <div class="batch-image-rename-row" style="display:flex; align-items:center; gap:6px; margin-bottom:6px; width:100%;">
+            <input type="text" class="input batch-image-name-input" data-id="${item.id}" value="${defaultName}" placeholder="Filename" style="flex:1; min-width:0; height:24px; font-size:11px;" />
+            <span class="batch-image-ext-preview" style="flex-shrink:0;">${isProductImg ? '.png' : '.webp'}</span>
             <span class="batch-image-device-badge" style="font-size:9px; color:var(--text-muted); background:rgba(255,255,255,0.05); padding:1px 6px; border-radius:4px; white-space:nowrap; border:1px solid rgba(255,255,255,0.03); flex-shrink:0;">📷 Picking device...</span>
           </div>
-          <div class="batch-image-rename-field">
-            <input type="text" class="input batch-image-name-input" data-id="${item.id}" value="${defaultName}" placeholder="Filename" style="flex:1; min-width:0; height:24px;" />
-            <span class="batch-image-ext-preview">${isProductImg ? '.png' : '.webp'}</span>
+          <div class="batch-image-controls-row" style="display:flex; align-items:center; gap:6px; width:100%;">
             <select class="select batch-resolution-select" data-id="${item.id}" style="flex-shrink:0; width:110px; height:24px; padding:0 18px 0 6px !important; background-position:right 6px center !important; font-size:9px; background-color:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); color:var(--text-normal); border-radius:4px; cursor:pointer; font-weight:500;">
               <option value="default"${defaultRes === 'default' ? ' selected' : ''}>Global Size</option>
               <option value="0"${defaultRes === '0' ? ' selected' : ''}>Original</option>
