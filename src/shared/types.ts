@@ -100,6 +100,10 @@ export interface ProcessingOptions {
   crop?: Record<string, boolean>;
   /** Optional custom resolution mapping item.id -> string */
   customResolutions?: Record<string, string>;
+  /** Optional custom background color enable mapping item.id -> boolean */
+  bgColorEnable?: Record<string, boolean>;
+  /** Optional custom background color hex value mapping item.id -> string */
+  bgColorValue?: Record<string, string>;
   /** Optional custom EXIF metadata mapping item.id -> metadata */
   customMetadata?: Record<string, {
     title?: string;

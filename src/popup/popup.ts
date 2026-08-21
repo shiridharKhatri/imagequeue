@@ -482,6 +482,11 @@ function showBatchView(queue: QueueData): void {
               <input type="checkbox" class="batch-crop-check" data-id="${item.id}" ${isProductImg ? 'checked' : ''} style="width:12px; height:12px; accent-color:#3b82f6; cursor:pointer;" />
               <span>Crop✂️</span>
             </label>
+            <label class="batch-bg-color-toggle" title="Fill background with custom color" style="display:flex; align-items:center; gap:3px; font-size:9px; color:var(--text-muted); cursor:pointer; flex-shrink:0; padding:2px 6px; border-radius:4px; border:1px solid rgba(255,255,255,0.08); background:rgba(255,255,255,0.03);">
+              <input type="checkbox" class="batch-bg-color-enable" data-id="${item.id}" style="width:12px; height:12px; accent-color:#ef4444; cursor:pointer;" />
+              <span>🎨 BG</span>
+              <input type="color" class="batch-bg-color-value" data-id="${item.id}" value="#ffffff" style="width:16px; height:16px; border:none; padding:0; background:transparent; cursor:pointer; border-radius:2px;" />
+            </label>
           </div>
         </div>
       </div>
@@ -496,6 +501,8 @@ function showBatchView(queue: QueueData): void {
 
     const bgCheck = el.querySelector('.batch-bg-remove-check') as HTMLInputElement;
     const cropCheck = el.querySelector('.batch-crop-check') as HTMLInputElement;
+    const bgColEnable = el.querySelector('.batch-bg-color-enable') as HTMLInputElement;
+    const bgColValue = el.querySelector('.batch-bg-color-value') as HTMLInputElement;
 
     const updateThumbnailPreview = async () => {
       const storedImage = await imageStore.get(item.id);
@@ -506,12 +513,16 @@ function showBatchView(queue: QueueData): void {
 
       const isBg = bgCheck?.checked || false;
       const isCrop = cropCheck?.checked || false;
+      const isBgCol = bgColEnable?.checked || false;
+      const bgColorVal = bgColValue?.value || '#ffffff';
 
       const bgLabel = el.querySelector('.batch-bg-remove-toggle') as HTMLElement;
       const cropLabel = el.querySelector('.batch-crop-toggle') as HTMLElement;
+      const bgColorLabel = el.querySelector('.batch-bg-color-toggle') as HTMLElement;
 
       if (bgLabel) bgLabel.style.background = isBg ? 'rgba(139,92,246,0.15)' : 'rgba(255,255,255,0.03)';
       if (cropLabel) cropLabel.style.background = isCrop ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.03)';
+      if (bgColorLabel) bgColorLabel.style.background = isBgCol ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.03)';
 
       let blob = storedImage.blob;
       if (isBg) {
@@ -528,10 +539,17 @@ function showBatchView(queue: QueueData): void {
           console.error('Crop transparent failed:', e);
         }
       }
+      if (isBgCol) {
+        try {
+          blob = await fillBackgroundColorClient(blob, bgColorVal);
+        } catch (e) {
+          console.error('Fill background color failed:', e);
+        }
+      }
 
       const url = URL.createObjectURL(blob);
       container.innerHTML = `<img src="${url}" class="batch-image-thumbnail" style="width:100%; height:100%; object-fit:contain; border-radius:4px;" />`;
-      if (isBg || isCrop) {
+      if ((isBg || isCrop) && !isBgCol) {
         container.style.background = 'repeating-conic-gradient(#808080 0% 25%, #fff 0% 50%) 50% / 10px 10px';
       } else {
         container.style.background = 'none';
@@ -540,7 +558,7 @@ function showBatchView(queue: QueueData): void {
       // Update extension preview
       const extPreview = el.querySelector('.batch-image-ext-preview');
       if (extPreview) {
-        if (isBg || isCrop) {
+        if ((isBg || isCrop) && !isBgCol) {
           extPreview.textContent = '.png';
         } else {
           const formatInput = document.querySelector('input[name="format"]:checked') as HTMLInputElement;
@@ -551,6 +569,9 @@ function showBatchView(queue: QueueData): void {
 
     if (bgCheck) bgCheck.addEventListener('change', updateThumbnailPreview);
     if (cropCheck) cropCheck.addEventListener('change', updateThumbnailPreview);
+    if (bgColEnable) bgColEnable.addEventListener('change', updateThumbnailPreview);
+    if (bgColValue) bgColValue.addEventListener('change', updateThumbnailPreview);
+    if (bgColValue) bgColValue.addEventListener('input', updateThumbnailPreview);
 
     // Asynchronously load thumbnail preview from IndexedDB imageStore
     updateThumbnailPreview().then(() => {
@@ -658,7 +679,28 @@ function getProcessingOptions(): ProcessingOptions {
     }
   });
 
-  console.log('[popup] getProcessingOptions collected:', { bgRemove, crop, customResolutions });
+  const bgColorEnable: Record<string, boolean> = {};
+  const bgColorValue: Record<string, string> = {};
+
+  const colEnables = batchImageList.querySelectorAll('.batch-bg-color-enable');
+  colEnables.forEach((chk) => {
+    const htmlChk = chk as HTMLInputElement;
+    const id = htmlChk.dataset.id;
+    if (id) {
+      bgColorEnable[id] = htmlChk.checked;
+    }
+  });
+
+  const colValues = batchImageList.querySelectorAll('.batch-bg-color-value');
+  colValues.forEach((valInput) => {
+    const htmlInput = valInput as HTMLInputElement;
+    const id = htmlInput.dataset.id;
+    if (id) {
+      bgColorValue[id] = htmlInput.value;
+    }
+  });
+
+  console.log('[popup] getProcessingOptions collected:', { bgRemove, crop, customResolutions, bgColorEnable, bgColorValue });
 
   // Collect individual custom metadata
   const customMetadata: Record<string, any> = {};
@@ -696,6 +738,8 @@ function getProcessingOptions(): ProcessingOptions {
     bgRemove,
     crop,
     customResolutions,
+    bgColorEnable,
+    bgColorValue,
     customMetadata,
     metadata: exifToggle.checked ? {
       make: exifMakeInput.value.trim(),
@@ -1921,6 +1965,29 @@ function updateAllCardBadges(): void {
 }
 
 
+
+async function fillBackgroundColorClient(blob: Blob, hexColor: string): Promise<Blob> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.src = URL.createObjectURL(blob);
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d')!;
+      ctx.fillStyle = hexColor;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0);
+      URL.revokeObjectURL(img.src);
+      canvas.toBlob((outBlob) => {
+        resolve(outBlob || blob);
+      }, 'image/png');
+    };
+    img.onerror = () => {
+      resolve(blob);
+    };
+  });
+}
 
 // Init
 init();

@@ -450,3 +450,20 @@ function formatToExtension(format: ImageFormat): string {
   };
   return map[format] || 'webp';
 }
+
+export async function fillBackgroundColor(inputBlob: Blob, hexColor: string): Promise<Blob> {
+  const bitmap = await createImageBitmap(inputBlob);
+  const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+  const ctx = canvas.getContext('2d')!;
+  
+  // Fill solid background
+  ctx.fillStyle = hexColor;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+  // Draw the original image on top
+  ctx.drawImage(bitmap, 0, 0);
+  bitmap.close();
+
+  // Return as PNG/WebP (using PNG to preserve lossless quality before final format compression)
+  return canvas.convertToBlob({ type: 'image/png' });
+}
