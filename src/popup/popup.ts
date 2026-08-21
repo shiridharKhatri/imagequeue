@@ -1892,8 +1892,11 @@ function getIntelligentSuffix(prompt: string, index: number): string {
   if (p.includes('before and after') || p.includes('before & after') || p.includes('comparison')) {
     return 'before-after';
   }
-  if (p.includes('background removed') || p.includes('feature image') || p.includes('white background') && p.includes('300x300')) {
+  if (p.includes('feature image') || p.includes('widescreen feature')) {
     return 'feature-image';
+  }
+  if (p.includes('product image') || p.includes('solid background') && p.includes('300x300')) {
+    return 'product-image';
   }
   return String(index + 1).padStart(2, '0');
 }

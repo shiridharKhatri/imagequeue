@@ -184,12 +184,17 @@ async function handleBuildZip(
         dateTimeOriginal: customMeta?.dateTimeOriginal ?? options.metadata?.dateTimeOriginal ?? undefined,
       };
 
-      // Check card-specific BG remove and Crop
+      // Check card-specific BG remove, Crop, and Background Color
       const isBgRemove = options.bgRemove?.[item.id] || false;
       const isCrop = options.crop?.[item.id] || false;
+      const isBgColor = options.bgColorEnable?.[item.id] || false;
+      const bgColor = options.bgColorValue?.[item.id] || '#ffffff';
+
+      const itemResolution = (options.customResolutions && options.customResolutions[item.id]) || options.resolution;
 
       blob = await processImage(stored.blob, {
         ...options,
+        resolution: itemResolution,
         metadata: itemMetadata,
       });
 
@@ -199,12 +204,20 @@ async function handleBuildZip(
       if (isCrop) {
         blob = await cropTransparent(blob);
       }
+      if (isBgColor) {
+        blob = await fillBackgroundColor(blob, bgColor);
+      }
 
-      let fmt = (isBgRemove || isCrop) ? 'png' : options.format;
+      let fmt = (isBgRemove || isCrop) && !isBgColor ? 'png' : options.format;
       if (fmt === 'def') {
         fmt = getExtensionFromMime(stored.blob.type) as ImageFormat;
       }
       ext = formatToExtension(fmt);
+
+      // Re-inject metadata if background removal, cropping, or bg color stripped it
+      if (isBgRemove || isCrop || isBgColor) {
+        blob = await injectMetadata(blob, fmt, itemMetadata);
+      }
     }
 
     let filename = '';
