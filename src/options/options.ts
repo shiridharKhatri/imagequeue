@@ -23,6 +23,7 @@ const deleteAfterZipCheckbox = $<HTMLInputElement>('delete-after-zip');
 const wpSiteUrlInput = $<HTMLInputElement>('wp-site-url');
 const wpApiKeyInput = $<HTMLInputElement>('wp-api-key');
 const defaultAuthorInput = $<HTMLInputElement>('default-author');
+const customBgRemovalUrlInput = $<HTMLInputElement>('custom-bg-removal-url');
 
 // Diagnostics
 const diagTab = $<HTMLElement>('diag-tab');
@@ -56,6 +57,7 @@ async function loadSettings(): Promise<void> {
   wpSiteUrlInput.value = settings.wpSiteUrl || '';
   wpApiKeyInput.value = settings.wpApiKey || '';
   defaultAuthorInput.value = settings.authorName || '';
+  customBgRemovalUrlInput.value = settings.customBgRemovalUrl || '';
 }
 
 async function saveSettings(): Promise<void> {
@@ -78,6 +80,7 @@ async function saveSettings(): Promise<void> {
     wpSiteUrl: wpSiteUrlInput.value.trim(),
     wpApiKey: wpApiKeyInput.value.trim(),
     authorName: defaultAuthorInput.value.trim(),
+    customBgRemovalUrl: customBgRemovalUrlInput.value.trim(),
   };
 
   await sendToBackground(MSG.SAVE_SETTINGS, { settings });

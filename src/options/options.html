@@ -215,6 +215,21 @@
             </div>
           </div>
         </section>
+
+        <!-- Section: Custom BG Removal API -->
+        <section class="card settings-section" style="margin-top: var(--space-md);">
+          <div class="card-header">
+            <h3 class="card-title">Custom AI Background Removal API</h3>
+            <p class="card-desc">Enter your FastAPI background removal API URL to replace client-side threshold filter with high-quality AI segmentation.</p>
+          </div>
+          <div class="card-body">
+            <div class="field">
+              <label for="custom-bg-removal-url">AI Background Removal API URL</label>
+              <input type="text" id="custom-bg-removal-url" class="input" placeholder="e.g. http://localhost:8000/remove-bg" />
+              <p class="field-help" style="font-size:11px; color:var(--text-muted); margin-top:4px;">When set, the extension will send image blobs to this custom endpoint via HTTP POST. Leave empty to use client-side background removal.</p>
+            </div>
+          </div>
+        </section>
       </div>
 
       <!-- Tab 3: Diagnostics & Logs -->

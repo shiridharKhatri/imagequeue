@@ -88,6 +88,35 @@ export async function processImage(
  * Always outputs PNG (required for transparency).
  */
 export async function removeBackground(inputBlob: Blob): Promise<Blob> {
+  // Check if a custom AI background removal API URL is set
+  try {
+    const result = await chrome.storage.local.get('iq_settings');
+    const settings = result['iq_settings'];
+    if (settings && settings.customBgRemovalUrl) {
+      const apiUrl = settings.customBgRemovalUrl.trim();
+      if (apiUrl) {
+        console.log('[image-processor] Using custom AI background removal API:', apiUrl);
+        const formData = new FormData();
+        formData.append('file', inputBlob, 'image.png');
+        
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          body: formData
+        });
+        
+        if (response.ok) {
+          const outBlob = await response.blob();
+          return outBlob;
+        } else {
+          const errText = await response.text();
+          console.warn('[image-processor] Custom BG removal API returned error:', response.status, errText);
+        }
+      }
+    }
+  } catch (e) {
+    console.error('[image-processor] Failed to query custom AI BG removal settings/API, falling back to local threshold:', e);
+  }
+
   const bitmap = await createImageBitmap(inputBlob);
   const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
   const ctx = canvas.getContext('2d')!;

@@ -189,6 +189,8 @@ export interface ExtensionSettings {
   wpApiKey: string;
   /** Default Author Name */
   authorName: string;
+  /** Custom AI Background Removal API URL (e.g. http://localhost:8000/remove-bg) */
+  customBgRemovalUrl?: string;
 }
 
 // ─── ChatGPT Detection ────────────────────────────────────────

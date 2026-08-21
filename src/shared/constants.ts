@@ -70,6 +70,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
   wpSiteUrl: '',
   wpApiKey: '',
   authorName: '',
+  customBgRemovalUrl: '',
 };
 
 // ─── UI ────────────────────────────────────────────────────────
