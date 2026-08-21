@@ -93,8 +93,12 @@ export async function removeBackground(inputBlob: Blob): Promise<Blob> {
     const result = await chrome.storage.local.get('iq_settings');
     const settings = result['iq_settings'];
     if (settings && settings.customBgRemovalUrl) {
-      const apiUrl = settings.customBgRemovalUrl.trim();
+      let apiUrl = settings.customBgRemovalUrl.trim();
       if (apiUrl) {
+        // Automatically append /remove-bg if only base URL/domain is provided
+        if (!apiUrl.endsWith('/remove-bg') && !apiUrl.endsWith('/remove-bg/')) {
+          apiUrl = apiUrl.replace(/\/$/, '') + '/remove-bg';
+        }
         console.log('[image-processor] Using custom AI background removal API:', apiUrl);
         const formData = new FormData();
         formData.append('file', inputBlob, 'image.png');

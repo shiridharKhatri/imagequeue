@@ -19,6 +19,7 @@
     "unlimitedStorage"
   ],
   "host_permissions": [
+    "<all_urls>",
     "*://chatgpt.com/*",
     "*://*.oaiusercontent.com/*",
     "*://gemini.google.com/*",
