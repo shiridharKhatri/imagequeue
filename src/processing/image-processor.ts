@@ -92,29 +92,28 @@ export async function removeBackground(inputBlob: Blob): Promise<Blob> {
   try {
     const result = await chrome.storage.local.get('iq_settings');
     const settings = result['iq_settings'];
-    if (settings && settings.customBgRemovalUrl) {
-      let apiUrl = settings.customBgRemovalUrl.trim();
-      if (apiUrl) {
-        // Automatically append /remove-bg if only base URL/domain is provided
-        if (!apiUrl.endsWith('/remove-bg') && !apiUrl.endsWith('/remove-bg/')) {
-          apiUrl = apiUrl.replace(/\/$/, '') + '/remove-bg';
-        }
-        console.log('[image-processor] Using custom AI background removal API:', apiUrl);
-        const formData = new FormData();
-        formData.append('file', inputBlob, 'image.png');
-        
-        const response = await fetch(apiUrl, {
-          method: 'POST',
-          body: formData
-        });
-        
-        if (response.ok) {
-          const outBlob = await response.blob();
-          return outBlob;
-        } else {
-          const errText = await response.text();
-          console.warn('[image-processor] Custom BG removal API returned error:', response.status, errText);
-        }
+    let apiUrl = (settings && settings.customBgRemovalUrl) ? settings.customBgRemovalUrl.trim() : 'http://localhost:8000';
+    
+    if (apiUrl) {
+      // Automatically append /remove-bg if only base URL/domain is provided
+      if (!apiUrl.endsWith('/remove-bg') && !apiUrl.endsWith('/remove-bg/')) {
+        apiUrl = apiUrl.replace(/\/$/, '') + '/remove-bg';
+      }
+      console.log('[image-processor] Using AI background removal API:', apiUrl);
+      const formData = new FormData();
+      formData.append('file', inputBlob, 'image.png');
+      
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (response.ok) {
+        const outBlob = await response.blob();
+        return outBlob;
+      } else {
+        const errText = await response.text();
+        console.warn('[image-processor] Custom BG removal API returned error:', response.status, errText);
       }
     }
   } catch (e) {

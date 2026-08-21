@@ -70,7 +70,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
   wpSiteUrl: '',
   wpApiKey: '',
   authorName: '',
-  customBgRemovalUrl: '',
+  customBgRemovalUrl: 'http://localhost:8000',
 };
 
 // ─── UI ────────────────────────────────────────────────────────

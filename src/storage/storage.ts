@@ -57,14 +57,14 @@ export class SettingsStorage {
       const result = await chrome.storage.local.get(STORAGE_KEY_SETTINGS);
       const saved = result[STORAGE_KEY_SETTINGS];
 
-      if (!saved) {
-        return { ...DEFAULT_SETTINGS };
+      const merged = { ...DEFAULT_SETTINGS, ...saved };
+      if (!merged.customBgRemovalUrl || !merged.customBgRemovalUrl.trim()) {
+        merged.customBgRemovalUrl = 'http://localhost:8000';
       }
-      // Merge with defaults to pick up any new fields added in updates
-      return { ...DEFAULT_SETTINGS, ...saved };
+      return merged;
     } catch (err) {
       console.error('[SettingsStorage] load failed:', err);
-      return { ...DEFAULT_SETTINGS };
+      return { ...DEFAULT_SETTINGS, customBgRemovalUrl: 'http://localhost:8000' };
     }
   }
 
