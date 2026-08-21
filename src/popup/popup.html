@@ -113,7 +113,7 @@
             <div id="progress-bar" class="progress-bar" style="width:0%; height:100%; background:var(--accent); border-radius:4px; transition:width 0.3s;"></div>
           </div>
 
-          <div class="queue-controls" style="display:flex; flex-direction:column; gap:var(--space-sm); width:100%;">
+          <div class="queue-controls" style="display:flex; flex-direction:column; gap:var(--space-sm); width:100%; margin-bottom:var(--space-md);">
             <button id="btn-pause" class="btn btn-secondary btn-full">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
               Pause
@@ -129,21 +129,23 @@
               Back to Input
             </button>
           </div>
+
+          <!-- Debug Logs for troubleshooting background tab issues -->
+          <div id="debug-logs" style="padding:10px; background:#18181b; border:1px solid #27272a; border-radius:6px; font-family:monospace; font-size:10px; color:#a1a1aa; max-height:220px; overflow-y:auto; width:100%; box-sizing:border-box; display:block;">
+            <div style="display:flex; justify-content:space-between; align-items:center; font-weight:bold; color:var(--text-secondary); margin-bottom:6px; font-size:9px; text-transform:uppercase; letter-spacing:0.05em;">
+              <span>Live Activity Log (Troubleshooting):</span>
+              <button id="btn-clear-popup-logs" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:9px; padding:0;">[Clear]</button>
+            </div>
+            <div id="debug-logs-entries" style="display:flex; flex-direction:column; gap:3px;">No log entries. Switch tabs or wait to see logs.</div>
+          </div>
         </div>
 
         <!-- Right Column: Queue Items List -->
         <div class="col-right">
           <div id="queue-items" class="queue-items" style="flex:1; width:100%;">
             <!-- Queue items injected by JS -->
-      </div>
-
-      <!-- Debug Logs for troubleshooting background tab issues -->
-      <div id="debug-logs" style="margin-top:var(--space-md); padding:10px; background:#18181b; border:1px solid #27272a; border-radius:6px; font-family:monospace; font-size:10px; color:#a1a1aa; max-height:120px; overflow-y:auto; width:100%; box-sizing:border-box; display:block;">
-        <div style="display:flex; justify-content:space-between; align-items:center; font-weight:bold; color:var(--text-secondary); margin-bottom:6px; font-size:9px; text-transform:uppercase; letter-spacing:0.05em;">
-          <span>Live Activity Log (Troubleshooting):</span>
-          <button id="btn-clear-popup-logs" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:9px; padding:0;">[Clear]</button>
+          </div>
         </div>
-        <div id="debug-logs-entries" style="display:flex; flex-direction:column; gap:3px;">No log entries. Switch tabs or wait to see logs.</div>
       </div>
     </section>
 
