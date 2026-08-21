@@ -467,7 +467,7 @@ function showBatchView(queue: QueueData): void {
           <div class="batch-image-rename-field">
             <input type="text" class="input batch-image-name-input" data-id="${item.id}" value="${defaultName}" placeholder="Filename" style="flex:1; min-width:0; height:24px;" />
             <span class="batch-image-ext-preview">${isProductImg ? '.png' : '.webp'}</span>
-            <select class="select batch-resolution-select" data-id="${item.id}" style="width:auto; height:24px; padding:0 12px 0 4px; font-size:9px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); color:var(--text-normal); border-radius:4px; cursor:pointer; min-width:85px; font-weight:500;">
+            <select class="select batch-resolution-select" data-id="${item.id}" style="flex-shrink:0; width:110px; height:24px; padding:0 18px 0 6px !important; background-position:right 6px center !important; font-size:9px; background-color:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); color:var(--text-normal); border-radius:4px; cursor:pointer; font-weight:500;">
               <option value="default"${defaultRes === 'default' ? ' selected' : ''}>Global Size</option>
               <option value="0"${defaultRes === '0' ? ' selected' : ''}>Original</option>
               <option value="872x560"${defaultRes === '872x560' ? ' selected' : ''}>872x560 (Blog)</option>
