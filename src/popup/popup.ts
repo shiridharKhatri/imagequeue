@@ -106,6 +106,7 @@ const targetSizeInput = $<HTMLInputElement>('target-size');
 let currentQueue: QueueData | null = null;
 let promptCount = 0;
 let lastProductName = '[product]';
+let isBatchPersistenceInitialized = false;
 
 // ─── View Management ───────────────────────────────────────────
 
@@ -358,7 +359,7 @@ function renderQueue(queue: QueueData): void {
 
   // Auto-switch to batch view when complete
   if (isFinished && stats.completed > 0) {
-    showBatchView(queue);
+    showBatchView(queue).catch(console.error);
   }
 }
 
@@ -423,13 +424,116 @@ function createQueueItemElement(item: QueueItem, index: number): HTMLElement {
 
 // ─── Batch View ─────────────────────────────────────────────── 
 
-function showBatchView(queue: QueueData): void {
+async function showBatchView(queue: QueueData): Promise<void> {
   showView('batch');
 
   const completedItems = queue.items.filter((i) => i.status === 'completed');
 
+  // Load saved options from storage session if any
+  let saved: ProcessingOptions | null = null;
+  try {
+    const result = await chrome.storage.local.get('iq_batch_session');
+    saved = result['iq_batch_session'] || null;
+  } catch (e) {
+    console.error('Failed to load batch session options:', e);
+  }
+
+  // Define helper function to save current state
+  const saveOptions = async () => {
+    try {
+      const options = getProcessingOptions();
+      await chrome.storage.local.set({ 'iq_batch_session': options });
+    } catch (e) {
+      console.error('[popup] Failed to save batch options session:', e);
+    }
+  };
+
+  // Restore global controls if saved session exists
+  if (saved) {
+    if (saved.format) {
+      const radio = document.querySelector(`input[name="format"][value="${saved.format}"]`) as HTMLInputElement;
+      if (radio) {
+        radio.checked = true;
+        // Trigger style/DOM updates for format selection
+        const radioEvent = new Event('change', { bubbles: true });
+        radio.dispatchEvent(radioEvent);
+      }
+    }
+    if (typeof saved.quality === 'number') {
+      qualityInput.value = String(saved.quality);
+      qualityValue.textContent = String(saved.quality);
+    }
+    if (saved.targetSizeKb !== undefined) {
+      targetSizeInput.value = String(saved.targetSizeKb);
+    } else {
+      targetSizeInput.value = '';
+    }
+    if (saved.resolution) {
+      resolutionSelect.value = saved.resolution;
+    }
+    if (saved.filenamePrefix) {
+      filenamePrefixInput.value = saved.filenamePrefix;
+    }
+    if (saved.metadata && saved.metadata.author) {
+      authorNameInput.value = saved.metadata.author;
+    }
+    if (saved.metadata) {
+      exifToggle.checked = true;
+      exifFieldsContainer.style.display = 'block';
+      exifMakeInput.value = saved.metadata.make || '';
+      exifModelInput.value = saved.metadata.model || '';
+      exifLensInput.value = saved.metadata.lensModel || '';
+      exifSoftwareInput.value = saved.metadata.software || '';
+      exifCopyrightInput.value = saved.metadata.copyright || '';
+      exifCountryInput.value = saved.metadata.country || '';
+      exifStateInput.value = saved.metadata.state || '';
+      exifCityInput.value = saved.metadata.city || '';
+      exifSublocInput.value = saved.metadata.subLocation || '';
+      exifLatInput.value = saved.metadata.gpsLatitude || '';
+      exifLonInput.value = saved.metadata.gpsLongitude || '';
+      exifDateInput.value = saved.metadata.dateTimeOriginal || '';
+    } else {
+      exifToggle.checked = false;
+      exifFieldsContainer.style.display = 'none';
+    }
+  }
+
+  // Listen to global changes on the left panel (bind only once)
+  if (!isBatchPersistenceInitialized) {
+    isBatchPersistenceInitialized = true;
+    const leftControls = [
+      resolutionSelect,
+      filenamePrefixInput,
+      qualityInput,
+      targetSizeInput,
+      exifToggle,
+      exifMakeInput,
+      exifModelInput,
+      exifLensInput,
+      exifSoftwareInput,
+      exifCopyrightInput,
+      exifCountryInput,
+      exifStateInput,
+      exifCityInput,
+      exifSublocInput,
+      exifLatInput,
+      exifLonInput,
+      exifDateInput,
+    ];
+
+    leftControls.forEach((ctrl) => {
+      ctrl.addEventListener('change', saveOptions);
+      ctrl.addEventListener('input', saveOptions);
+    });
+
+    const formatRadios = document.querySelectorAll('input[name="format"]');
+    formatRadios.forEach((radio) => {
+      radio.addEventListener('change', saveOptions);
+    });
+  }
+
   // Default prefix from article name
-  const prefix = queue.articleName || 'image';
+  const prefix = (saved && saved.filenamePrefix) || queue.articleName || 'image';
   filenamePrefixInput.value = prefix;
 
   // Image list
@@ -440,15 +544,44 @@ function showBatchView(queue: QueueData): void {
     el.dataset.id = item.id;
 
     const suffix = getIntelligentSuffix(item.prompt, i);
-    const defaultName = `${prefix}-${suffix}`;
+    let defaultName = `${prefix}-${suffix}`;
+    if (saved && saved.customFilenames && saved.customFilenames[item.id]) {
+      defaultName = saved.customFilenames[item.id];
+    }
+
     const isProductImg = item.prompt.toLowerCase().includes('background removed') || item.prompt.toLowerCase().includes('product image');
     const isFeatureImg = item.prompt.toLowerCase().includes('feature image');
 
     let defaultRes = 'default';
-    if (isProductImg) {
+    if (saved && saved.customResolutions && saved.customResolutions[item.id]) {
+      defaultRes = saved.customResolutions[item.id];
+    } else if (isProductImg) {
       defaultRes = '340x340';
     } else if (isFeatureImg) {
       defaultRes = '872x560';
+    }
+
+    let defaultBgMode = isProductImg ? 'transparent' : 'original';
+    if (saved) {
+      const hasBgRemove = saved.bgRemove?.[item.id] || false;
+      const hasBgColor = saved.bgColorEnable?.[item.id] || false;
+      if (hasBgColor) {
+        defaultBgMode = 'color';
+      } else if (hasBgRemove) {
+        defaultBgMode = 'transparent';
+      } else {
+        defaultBgMode = 'original';
+      }
+    }
+
+    let defaultBgColor = '#ffffff';
+    if (saved && saved.bgColorValue && saved.bgColorValue[item.id]) {
+      defaultBgColor = saved.bgColorValue[item.id];
+    }
+
+    let defaultCrop = isProductImg;
+    if (saved && saved.crop && saved.crop[item.id] !== undefined) {
+      defaultCrop = saved.crop[item.id];
     }
     
     el.innerHTML = `
@@ -471,17 +604,17 @@ function showBatchView(queue: QueueData): void {
               <option value="0"${defaultRes === '0' ? ' selected' : ''}>Original</option>
               <option value="872x560"${defaultRes === '872x560' ? ' selected' : ''}>872x560 (Blog)</option>
               <option value="340x340"${defaultRes === '340x340' ? ' selected' : ''}>340x340 (Product)</option>
-              <option value="1200x628">1200x628 (WP Wide)</option>
-              <option value="1200x1200">1200x1200 (Square)</option>
+              <option value="1200x628"${defaultRes === '1200x628' ? ' selected' : ''}>1200x628 (WP Wide)</option>
+              <option value="1200x1200"${defaultRes === '1200x1200' ? ' selected' : ''}>1200x1200 (Square)</option>
             </select>
             <select class="select batch-bg-select" data-id="${item.id}" style="flex-shrink:0; width:95px; height:24px; padding:0 18px 0 6px !important; background-position:right 6px center !important; font-size:9px; background-color:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); color:var(--text-normal); border-radius:4px; cursor:pointer; font-weight:500;">
-              <option value="original"${!isProductImg ? ' selected' : ''}>No Cutout</option>
-              <option value="transparent"${isProductImg ? ' selected' : ''}>Transparent</option>
-              <option value="color">Solid Color</option>
+              <option value="original"${defaultBgMode === 'original' ? ' selected' : ''}>No Cutout</option>
+              <option value="transparent"${defaultBgMode === 'transparent' ? ' selected' : ''}>Transparent</option>
+              <option value="color"${defaultBgMode === 'color' ? ' selected' : ''}>Solid Color</option>
             </select>
-            <input type="color" class="batch-bg-color-picker" data-id="${item.id}" value="#ffffff" style="display:none; width:22px; height:22px; border:1px solid rgba(255,255,255,0.15); padding:0; background:transparent; cursor:pointer; border-radius:4px; flex-shrink:0;" />
-            <label class="batch-crop-toggle" title="Auto-crop transparent borders" style="display:flex; align-items:center; gap:3px; font-size:9px; color:var(--text-muted); cursor:pointer; flex-shrink:0; padding:2px 6px; border-radius:4px; border:1px solid rgba(255,255,255,0.08); background:${isProductImg ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.03)'};">
-              <input type="checkbox" class="batch-crop-check" data-id="${item.id}" ${isProductImg ? 'checked' : ''} style="width:12px; height:12px; accent-color:#3b82f6; cursor:pointer;" />
+            <input type="color" class="batch-bg-color-picker" data-id="${item.id}" value="${defaultBgColor}" style="${defaultBgMode === 'color' ? 'display:block;' : 'display:none;'} width:22px; height:22px; border:1px solid rgba(255,255,255,0.15); padding:0; background:transparent; cursor:pointer; border-radius:4px; flex-shrink:0;" />
+            <label class="batch-crop-toggle" title="Auto-crop transparent borders" style="display:flex; align-items:center; gap:3px; font-size:9px; color:var(--text-muted); cursor:pointer; flex-shrink:0; padding:2px 6px; border-radius:4px; border:1px solid rgba(255,255,255,0.08); background:${defaultCrop ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.03)'};">
+              <input type="checkbox" class="batch-crop-check" data-id="${item.id}" ${defaultCrop ? 'checked' : ''} style="width:12px; height:12px; accent-color:#3b82f6; cursor:pointer;" />
               <span>Crop✂️</span>
             </label>
           </div>
@@ -494,11 +627,14 @@ function showBatchView(queue: QueueData): void {
     input.addEventListener('input', () => {
       input.classList.add('is-dirty');
       updateFilenamePreview();
+      saveOptions();
     });
+    input.addEventListener('change', saveOptions);
 
     const bgSelect = el.querySelector('.batch-bg-select') as HTMLSelectElement;
     const bgPicker = el.querySelector('.batch-bg-color-picker') as HTMLInputElement;
     const cropCheck = el.querySelector('.batch-crop-check') as HTMLInputElement;
+    const resSelect = el.querySelector('.batch-resolution-select') as HTMLSelectElement;
 
     const handleBgModeChange = () => {
       const mode = bgSelect?.value || 'original';
@@ -569,10 +705,19 @@ function showBatchView(queue: QueueData): void {
       }
     };
 
-    if (bgSelect) bgSelect.addEventListener('change', handleBgModeChange);
-    if (bgPicker) bgPicker.addEventListener('change', updateThumbnailPreview);
-    if (bgPicker) bgPicker.addEventListener('input', updateThumbnailPreview);
-    if (cropCheck) cropCheck.addEventListener('change', updateThumbnailPreview);
+    const handleCardChange = () => {
+      updateThumbnailPreview();
+      saveOptions();
+    };
+
+    if (bgSelect) bgSelect.addEventListener('change', () => {
+      handleBgModeChange();
+      saveOptions();
+    });
+    if (bgPicker) bgPicker.addEventListener('change', handleCardChange);
+    if (bgPicker) bgPicker.addEventListener('input', handleCardChange);
+    if (cropCheck) cropCheck.addEventListener('change', handleCardChange);
+    if (resSelect) resSelect.addEventListener('change', handleCardChange);
 
     // Initialize color picker visibility
     if (bgSelect?.value === 'color') {
@@ -595,16 +740,20 @@ function showBatchView(queue: QueueData): void {
   });
 
   // Reset target size input
-  targetSizeInput.value = '';
+  if (!saved) {
+    targetSizeInput.value = '';
+  }
 
-  settingsStorage.load().then((settings) => {
-    if (settings && settings.authorName) {
-      authorNameInput.value = settings.authorName;
-    }
-  });
+  if (!saved) {
+    settingsStorage.load().then((settings) => {
+      if (settings && settings.authorName) {
+        authorNameInput.value = settings.authorName;
+      }
+    });
+  }
 
-  // Auto-populate a random device + location by default
-  if (exifToggle.checked) {
+  // Auto-populate a random device + location by default (only if NOT restoring a saved session)
+  if (exifToggle.checked && !saved) {
     const device = DEVICE_PRESETS[Math.floor(Math.random() * DEVICE_PRESETS.length)];
     const location = LOCATION_PRESETS[Math.floor(Math.random() * LOCATION_PRESETS.length)];
     const author = AUTHOR_PRESETS[Math.floor(Math.random() * AUTHOR_PRESETS.length)];
@@ -826,6 +975,13 @@ async function handleGenerate(): Promise<void> {
   if (prompts.length === 0) {
     showBanner('warning', 'Please enter at least one prompt');
     return;
+  }
+
+  // Clear any existing batch session options on new queue generation
+  try {
+    await chrome.storage.local.remove('iq_batch_session');
+  } catch (e) {
+    console.error('Failed to clear old batch session options:', e);
   }
 
   const articleName = articleNameInput.value.trim() || 'image';
@@ -1153,7 +1309,7 @@ async function init(): Promise<void> {
       if (queue.state === 'completed') {
         const hasCompleted = queue.items.some((i) => i.status === 'completed');
         if (hasCompleted) {
-          showBatchView(queue);
+          await showBatchView(queue);
         } else {
           showView('queue');
           renderQueue(queue);
@@ -1209,6 +1365,11 @@ btnCancel.addEventListener('click', () => sendToBackground(MSG.CANCEL_QUEUE));
 
 const resetToInput = async () => {
   await sendToBackground(MSG.CLEAR_QUEUE);
+  try {
+    await chrome.storage.local.remove('iq_batch_session');
+  } catch (e) {
+    console.error('Failed to clear batch session options:', e);
+  }
   try {
     await imageStore.delete('ref-image-active');
     const allImages = await imageStore.getAll();
