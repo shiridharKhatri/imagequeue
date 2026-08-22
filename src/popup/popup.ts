@@ -648,11 +648,24 @@ async function showBatchView(queue: QueueData): Promise<void> {
     };
 
     const updateThumbnailPreview = async () => {
-      const storedImage = await imageStore.get(item.id);
-      if (!storedImage) return;
-
       const container = el.querySelector('.batch-image-thumbnail-container') as HTMLElement;
       if (!container) return;
+
+      // Clean up previous blob URL if any to prevent memory leaks
+      const oldImg = container.querySelector('.batch-image-thumbnail') as HTMLImageElement;
+      if (oldImg && oldImg.src.startsWith('blob:')) {
+        URL.revokeObjectURL(oldImg.src);
+      }
+
+      // Show small loading spinner during processing/API call
+      container.innerHTML = `<div class="spinner" style="width: 16px; height: 16px;"></div>`;
+      container.style.background = 'rgba(255, 255, 255, 0.02)';
+
+      const storedImage = await imageStore.get(item.id);
+      if (!storedImage) {
+        container.innerHTML = '';
+        return;
+      }
 
       const bgMode = bgSelect?.value || 'original';
       const isBg = bgMode === 'transparent' || bgMode === 'color';
