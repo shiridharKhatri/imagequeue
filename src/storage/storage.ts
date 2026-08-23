@@ -59,12 +59,12 @@ export class SettingsStorage {
 
       const merged = { ...DEFAULT_SETTINGS, ...saved };
       if (!merged.customBgRemovalUrl || !merged.customBgRemovalUrl.trim()) {
-        merged.customBgRemovalUrl = 'http://localhost:8000';
+        merged.customBgRemovalUrl = 'https://imagetool.api.dailyworkreport.com';
       }
       return merged;
     } catch (err) {
       console.error('[SettingsStorage] load failed:', err);
-      return { ...DEFAULT_SETTINGS, customBgRemovalUrl: 'http://localhost:8000' };
+      return { ...DEFAULT_SETTINGS, customBgRemovalUrl: 'https://imagetool.api.dailyworkreport.com' };
     }
   }
 

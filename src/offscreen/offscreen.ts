@@ -1052,7 +1052,7 @@ async function processImageViaApi(
   inputBlob: Blob,
   options: ProcessingOptions
 ): Promise<Blob> {
-  const apiUrl = (options.customBgRemovalUrl || 'http://localhost:8000').trim();
+  const apiUrl = (options.customBgRemovalUrl || 'https://imagetool.api.dailyworkreport.com').trim();
   let baseUrl = apiUrl.replace(/\/remove-bg\/?$/, '').replace(/\/$/, '');
   const processUrl = `${baseUrl}/process-image`;
 

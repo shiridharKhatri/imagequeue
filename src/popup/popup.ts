@@ -22,7 +22,7 @@ import { removeBackground, cropTransparent } from '../processing/image-processor
 const $ = <T extends HTMLElement>(id: string): T =>
   document.getElementById(id) as T;
 
-let cachedBgRemovalUrl = 'http://localhost:8000';
+let cachedBgRemovalUrl = 'https://imagetool.api.dailyworkreport.com';
 let cachedImageProcessingMode: 'local' | 'api' = 'local';
 
 const viewInput = $<HTMLElement>('view-input');

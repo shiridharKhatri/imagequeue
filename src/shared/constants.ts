@@ -70,7 +70,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
   wpSiteUrl: '',
   wpApiKey: '',
   authorName: '',
-  customBgRemovalUrl: 'http://localhost:8000',
+  customBgRemovalUrl: 'https://imagetool.api.dailyworkreport.com',
   imageProcessingMode: 'api',
 };
 

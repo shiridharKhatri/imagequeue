@@ -117,7 +117,7 @@ export async function removeBackground(inputBlob: Blob, customBgRemovalUrl?: str
       if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
         const result = await chrome.storage.local.get('iq_settings');
         const settings = result['iq_settings'];
-        apiUrl = (settings && settings.customBgRemovalUrl) ? settings.customBgRemovalUrl.trim() : 'http://localhost:8000';
+        apiUrl = (settings && settings.customBgRemovalUrl) ? settings.customBgRemovalUrl.trim() : 'https://imagetool.api.dailyworkreport.com';
       }
     } catch (err) {
       logger.error('Failed to query custom AI BG removal settings/API', { error: String(err) });
@@ -125,7 +125,7 @@ export async function removeBackground(inputBlob: Blob, customBgRemovalUrl?: str
   }
 
   if (!apiUrl) {
-    apiUrl = 'http://localhost:8000';
+    apiUrl = 'https://imagetool.api.dailyworkreport.com';
   }
     
     if (apiUrl) {
