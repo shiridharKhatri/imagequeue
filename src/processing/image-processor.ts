@@ -91,7 +91,7 @@ export async function processImage(
   const quality = options.quality / 100;
 
   let outputBlob: Blob;
-  if (options.targetSizeKb && options.targetSizeKb > 0 && options.format !== 'png') {
+  if (options.targetSizeKb && options.targetSizeKb > 0) {
     outputBlob = await compressToTargetSize(canvas, mimeType, options.targetSizeKb, quality);
   } else {
     outputBlob = await canvas.convertToBlob({
@@ -228,6 +228,44 @@ async function compressToTargetSize(
   initialQuality: number = 0.9
 ): Promise<Blob> {
   const targetBytes = targetSizeKb * 1024;
+  
+  if (mimeType === 'image/png') {
+    let blob = await canvas.convertToBlob({ type: 'image/png' });
+    if (blob.size <= targetBytes) {
+      return blob;
+    }
+    
+    let low = 0.1;
+    let high = 1.0;
+    let bestBlob = blob;
+    
+    for (let i = 0; i < 6; i++) {
+      const scale = (low + high) / 2;
+      const w = Math.max(1, Math.round(canvas.width * scale));
+      const h = Math.max(1, Math.round(canvas.height * scale));
+      const scaledCanvas = new OffscreenCanvas(w, h);
+      const scaledCtx = scaledCanvas.getContext('2d')!;
+      scaledCtx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, w, h);
+      
+      const scaledBlob = await scaledCanvas.convertToBlob({ type: 'image/png' });
+      if (scaledBlob.size <= targetBytes) {
+        bestBlob = scaledBlob;
+        low = scale;
+      } else {
+        high = scale;
+      }
+    }
+    
+    if (bestBlob.size > targetBytes) {
+      const w = Math.max(1, Math.round(canvas.width * 0.1));
+      const h = Math.max(1, Math.round(canvas.height * 0.1));
+      const scaledCanvas = new OffscreenCanvas(w, h);
+      const scaledCtx = scaledCanvas.getContext('2d')!;
+      scaledCtx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, w, h);
+      return await scaledCanvas.convertToBlob({ type: 'image/png' });
+    }
+    return bestBlob;
+  }
   
   let q = initialQuality;
   let blob = await canvas.convertToBlob({ type: mimeType, quality: q });

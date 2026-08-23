@@ -14,7 +14,7 @@ import { DEFAULT_PROMPT_COUNT, MAX_PROMPTS, MIN_PROMPTS } from '../shared/consta
 import { computeQueueStats, STATUS_DISPLAY } from '../queue/queue-types';
 import { imageStore } from '../storage/image-store';
 import { settingsStorage } from '../storage/storage';
-import { uploadToWordPressMedia, blobToBase64 } from '../api/wp-uploader';
+import { uploadToWordPress, blobToBase64, WPUploadPayload } from '../api/wp-uploader';
 import { removeBackground, cropTransparent } from '../processing/image-processor';
 
 // ─── DOM References ────────────────────────────────────────────
@@ -78,7 +78,6 @@ const exifMakeInput = $<HTMLInputElement>('exif-make');
 const exifModelInput = $<HTMLInputElement>('exif-model');
 const exifLensInput = $<HTMLInputElement>('exif-lens');
 const exifSoftwareInput = $<HTMLInputElement>('exif-software');
-const exifCopyrightInput = $<HTMLInputElement>('exif-copyright');
 const exifDateInput = $<HTMLInputElement>('exif-date');
 const exifCountryInput = $<HTMLInputElement>('exif-country');
 const exifStateInput = $<HTMLInputElement>('exif-state');
@@ -254,7 +253,7 @@ function addPromptField(value = ''): void {
       statusSpan.style.color = '#3b82f6';
       btnClear.style.display = 'inline-block';
       btnSelect.innerHTML = '📎 Change Reference Image';
-      
+
       const uidKey = `ref-image-prompt-${group.dataset.promptUid}`;
       await imageStore.store(uidKey, file, undefined, undefined, file.name);
     }
@@ -267,7 +266,7 @@ function addPromptField(value = ''): void {
     statusSpan.style.color = 'var(--text-muted)';
     btnClear.style.display = 'none';
     btnSelect.innerHTML = '📎 Choose Reference Image';
-    
+
     const uidKey = `ref-image-prompt-${group.dataset.promptUid}`;
     await imageStore.delete(uidKey);
   });
@@ -489,7 +488,6 @@ async function showBatchView(queue: QueueData): Promise<void> {
       exifModelInput.value = saved.metadata.model || '';
       exifLensInput.value = saved.metadata.lensModel || '';
       exifSoftwareInput.value = saved.metadata.software || '';
-      exifCopyrightInput.value = saved.metadata.copyright || '';
       exifCountryInput.value = saved.metadata.country || '';
       exifStateInput.value = saved.metadata.state || '';
       exifCityInput.value = saved.metadata.city || '';
@@ -516,7 +514,6 @@ async function showBatchView(queue: QueueData): Promise<void> {
       exifModelInput,
       exifLensInput,
       exifSoftwareInput,
-      exifCopyrightInput,
       exifCountryInput,
       exifStateInput,
       exifCityInput,
@@ -547,6 +544,21 @@ async function showBatchView(queue: QueueData): Promise<void> {
     const el = document.createElement('div');
     el.className = 'batch-image-item';
     el.dataset.id = item.id;
+
+    if (saved && saved.customMetadata && saved.customMetadata[item.id]) {
+      const cardMeta = saved.customMetadata[item.id];
+      if (cardMeta.make) el.dataset.make = cardMeta.make;
+      if (cardMeta.model) el.dataset.model = cardMeta.model;
+      if (cardMeta.lensModel) el.dataset.lensModel = cardMeta.lensModel;
+      if (cardMeta.software) el.dataset.software = cardMeta.software;
+      if (cardMeta.country) el.dataset.country = cardMeta.country;
+      if (cardMeta.state) el.dataset.state = cardMeta.state;
+      if (cardMeta.city) el.dataset.city = cardMeta.city;
+      if (cardMeta.subLocation) el.dataset.subLocation = cardMeta.subLocation;
+      if (cardMeta.gpsLatitude) el.dataset.gpsLatitude = cardMeta.gpsLatitude;
+      if (cardMeta.gpsLongitude) el.dataset.gpsLongitude = cardMeta.gpsLongitude;
+      if (cardMeta.dateTimeOriginal) el.dataset.dateTimeOriginal = sanitizeDateTimeString(cardMeta.dateTimeOriginal);
+    }
 
     const suffix = getIntelligentSuffix(item.prompt, i);
     let defaultName = `${prefix}-${suffix}`;
@@ -584,7 +596,7 @@ async function showBatchView(queue: QueueData): Promise<void> {
     if (saved && saved.crop && saved.crop[item.id] !== undefined) {
       defaultCrop = saved.crop[item.id];
     }
-    
+
     el.innerHTML = `
       <div class="batch-image-row">
         <div class="batch-image-index-badge">
@@ -595,7 +607,7 @@ async function showBatchView(queue: QueueData): Promise<void> {
         </div>
         <div class="batch-image-details" title="${escapeHtml(item.prompt)}">
           <div class="batch-image-rename-row" style="display:flex; align-items:center; gap:6px; margin-bottom:6px; width:100%;">
-            <input type="text" class="input batch-image-name-input" data-id="${item.id}" value="${defaultName}" placeholder="Filename" style="flex:1; min-width:0; height:24px; font-size:11px;" />
+            <input type="text" class="input batch-image-name-input" data-id="${item.id}" value="${defaultName}" placeholder="Filename" style="flex:1; min-width:80px; height:24px; font-size:11px;" />
             <span class="batch-image-ext-preview" style="flex-shrink:0;">${isProductImg ? '.png' : '.webp'}</span>
             <span class="batch-image-device-badge" style="font-size:9px; color:var(--text-muted); background:rgba(255,255,255,0.05); padding:1px 6px; border-radius:4px; white-space:nowrap; border:1px solid rgba(255,255,255,0.03); flex-shrink:0;">📷 Picking device...</span>
           </div>
@@ -775,7 +787,6 @@ async function showBatchView(queue: QueueData): Promise<void> {
     exifModelInput.value = device.model;
     exifLensInput.value = device.lensModel;
     exifSoftwareInput.value = device.software;
-    exifCopyrightInput.value = `© 2026 ${author}`;
     exifDateInput.value = getRandomDateTime();
     exifCountryInput.value = location.country;
     exifStateInput.value = location.state;
@@ -884,14 +895,13 @@ function getProcessingOptions(): ProcessingOptions {
           model: card.dataset.model || undefined,
           lensModel: card.dataset.lensModel || undefined,
           software: card.dataset.software || undefined,
-          copyright: card.dataset.copyright || undefined,
           country: card.dataset.country || undefined,
           state: card.dataset.state || undefined,
           city: card.dataset.city || undefined,
           subLocation: card.dataset.subLocation || undefined,
           gpsLatitude: card.dataset.gpsLatitude || undefined,
           gpsLongitude: card.dataset.gpsLongitude || undefined,
-          dateTimeOriginal: card.dataset.dateTimeOriginal || undefined,
+          dateTimeOriginal: sanitizeDateTimeString(card.dataset.dateTimeOriginal),
         };
       }
     });
@@ -917,14 +927,13 @@ function getProcessingOptions(): ProcessingOptions {
       model: exifModelInput.value.trim(),
       lensModel: exifLensInput.value.trim(),
       software: exifSoftwareInput.value.trim(),
-      copyright: exifCopyrightInput.value.trim(),
       country: exifCountryInput.value.trim(),
       state: exifStateInput.value.trim(),
       city: exifCityInput.value.trim(),
       subLocation: exifSublocInput.value.trim(),
       gpsLatitude: exifLatInput.value.trim(),
       gpsLongitude: exifLonInput.value.trim(),
-      dateTimeOriginal: exifDateInput.value.trim(),
+      dateTimeOriginal: sanitizeDateTimeString(exifDateInput.value.trim()),
     } : undefined,
     adjustments: {
       brightness: 100,
@@ -944,7 +953,7 @@ function updateExtensionPreviews(): void {
   ) as HTMLInputElement;
   const val = formatInput?.value || 'webp';
   const ext = val === 'def' ? ' (Default)' : `.${val}`;
-  
+
   const previews = batchImageList.querySelectorAll('.batch-image-ext-preview');
   previews.forEach((p) => {
     p.textContent = ext;
@@ -971,7 +980,7 @@ function updateFilenamePreview(): void {
 
   let html = '<strong>Example output:</strong><br>';
   const max = Math.min(count, 4);
-  
+
   // Use custom filenames in preview if available
   const completedItems = currentQueue
     ? currentQueue.items.filter((i) => i.status === 'completed')
@@ -1116,29 +1125,35 @@ async function handleUploadWP(): Promise<void> {
       const title = cleanTitle(customName);
       const author = authorNameInput.value.trim();
 
-      const metadata = {
+      const payload: WPUploadPayload = {
+        image: base64Data,
         title: title,
         alt_text: title,
         caption: '',
-        description: '',
+        description: itemMetadata?.description || '',
         filename: filename,
         author: author,
         author_name: author,
-        country: itemMetadata?.country,
-        state: itemMetadata?.state,
-        city: itemMetadata?.city,
-        sub_location: itemMetadata?.subLocation,
-        latitude: itemMetadata?.gpsLatitude,
-        longitude: itemMetadata?.gpsLongitude
-      };
-
-      const wpConfig = {
-        siteUrl: settings.wpSiteUrl,
-        apiKey: settings.wpApiKey
+        make: itemMetadata?.make || '',
+        model: itemMetadata?.model || '',
+        lensModel: itemMetadata?.lensModel || '',
+        lens_model: itemMetadata?.lensModel || '',
+        software: itemMetadata?.software || '',
+        dateTimeOriginal: sanitizeDateTimeString(itemMetadata?.dateTimeOriginal),
+        date_time_original: sanitizeDateTimeString(itemMetadata?.dateTimeOriginal),
+        country: itemMetadata?.country || '',
+        state: itemMetadata?.state || '',
+        city: itemMetadata?.city || '',
+        sub_location: itemMetadata?.subLocation || '',
+        subLocation: itemMetadata?.subLocation || '',
+        latitude: itemMetadata?.gpsLatitude || '',
+        gpsLatitude: itemMetadata?.gpsLatitude || '',
+        longitude: itemMetadata?.gpsLongitude || '',
+        gpsLongitude: itemMetadata?.gpsLongitude || ''
       };
 
       // Upload this item
-      await uploadToWordPressMedia(wpConfig, base64Data, metadata);
+      await uploadToWordPress(settings.wpSiteUrl, settings.wpApiKey, payload);
     }
 
     showBanner('success', `Successfully uploaded ${completedItems.length} images to WordPress!`);
@@ -1163,11 +1178,11 @@ function cleanTitle(filename: string): string {
 
 function optimizeAltText(prompt: string): string {
   let clean = prompt.split(/[.\n🔹•\r\?]/)[0].trim();
-  
+
   // Strip common starting phrases like "Create a... photo of a"
   clean = clean.replace(/^(create|generate|show)\s+(an?|the)?\s*[^]*?\b(photo|image|render|picture|graphic)\s+of\s+(an?|the)?/i, '');
   clean = clean.replace(/^(an?|the)?\s*[^]*?\b(photo|image|render|picture|graphic)\s+of\s+(an?|the)?/i, '');
-  
+
   // Clean up any remaining leading spaces/punctuation
   clean = clean.trim().replace(/^[,;:\s]+/, '');
 
@@ -1181,7 +1196,7 @@ function showBanner(
   connectionBanner.className = `banner banner-${type}`;
   connectionText.textContent = text;
   connectionBanner.style.display = 'flex';
-  
+
   if (type === 'warning') {
     btnOpenChatGPT.style.display = 'inline-block';
     if (text.toLowerCase().includes('gemini')) {
@@ -1221,7 +1236,7 @@ chrome.runtime.onMessage.addListener(
         if (providerSelect.value !== settings.activeProvider) {
           providerSelect.value = settings.activeProvider || 'chatgpt';
         }
-      }).catch(() => {});
+      }).catch(() => { });
     } else if (message.type === 'LOG_ENTRY') {
       appendLogToPopup(message.payload as any);
     }
@@ -1241,7 +1256,7 @@ function appendLogToPopup(entry: SimpleLog): void {
   const time = new Date(entry.timestamp).toLocaleTimeString('en-US', { hour12: false });
   const entryEl = document.createElement('div');
   entryEl.style.marginBottom = '6px';
-  
+
   let extraText = '';
   if (entry.data) {
     try {
@@ -1257,7 +1272,7 @@ function appendLogToPopup(entry: SimpleLog): void {
   }
 
   entryEl.innerHTML = `<div><span style="color:#71717a;">[${time}]</span> <span style="font-weight:bold; color:${entry.level === 'ERROR' ? '#ef4444' : entry.level === 'WARN' ? '#f59e0b' : '#3b82f6'};">[${entry.level}]</span> ${escapeHtml(entry.message)}</div>${extraText}`;
-  
+
   // Clear placeholder
   if (debugLogsEntries.textContent === 'No log entries. Switch tabs or wait to see logs.') {
     debugLogsEntries.textContent = '';
@@ -1353,7 +1368,7 @@ async function init(): Promise<void> {
 
   // Show input view with default prompts from guide
   showView('input');
-  
+
   const settings = await settingsStorage.load();
   providerSelect.value = settings.activeProvider || 'chatgpt';
 
@@ -1411,7 +1426,7 @@ const resetToInput = async () => {
   referenceImageInput.value = '';
   refImageStatus.textContent = 'No image selected';
   btnClearRef.style.display = 'none';
-  
+
   currentQueue = null;
   promptCount = 0;
   promptsContainer.innerHTML = '';
@@ -1503,12 +1518,11 @@ exifToggle.addEventListener('change', () => {
 // EXIF Clear bulk button listener
 btnClearExif.addEventListener('click', (e) => {
   e.preventDefault();
-  
+
   exifMakeInput.value = '';
   exifModelInput.value = '';
   exifLensInput.value = '';
   exifSoftwareInput.value = '';
-  exifCopyrightInput.value = '';
   exifDateInput.value = '';
   exifCountryInput.value = '';
   exifStateInput.value = '';
@@ -1525,7 +1539,6 @@ btnClearExif.addEventListener('click', (e) => {
     delete cardEl.dataset.model;
     delete cardEl.dataset.lensModel;
     delete cardEl.dataset.software;
-    delete cardEl.dataset.copyright;
     delete cardEl.dataset.country;
     delete cardEl.dataset.state;
     delete cardEl.dataset.city;
@@ -1533,13 +1546,13 @@ btnClearExif.addEventListener('click', (e) => {
     delete cardEl.dataset.gpsLatitude;
     delete cardEl.dataset.gpsLongitude;
     delete cardEl.dataset.dateTimeOriginal;
-    
+
     const badge = cardEl.querySelector('.batch-image-device-badge');
     if (badge) {
       badge.textContent = '';
     }
   });
-  
+
   updateFilenamePreview();
 });
 
@@ -1553,11 +1566,9 @@ exifDeviceSelect.addEventListener('change', () => {
     exifModelInput.value = device.model;
     exifLensInput.value = device.lensModel;
     exifSoftwareInput.value = device.software;
-    
+
     // Choose a random location, author, date taken for global inputs
     const location = LOCATION_PRESETS[Math.floor(Math.random() * LOCATION_PRESETS.length)];
-    const author = AUTHOR_PRESETS[Math.floor(Math.random() * AUTHOR_PRESETS.length)];
-    exifCopyrightInput.value = `© 2026 ${author}`;
     exifDateInput.value = getRandomDateTime();
     exifCountryInput.value = location.country;
     exifStateInput.value = location.state;
@@ -1571,19 +1582,17 @@ exifDeviceSelect.addEventListener('change', () => {
     cards.forEach((el) => {
       const cardEl = el as HTMLElement;
       const loc = LOCATION_PRESETS[Math.floor(Math.random() * LOCATION_PRESETS.length)];
-      const cardAuthor = AUTHOR_PRESETS[Math.floor(Math.random() * AUTHOR_PRESETS.length)];
       cardEl.dataset.make = device.make;
       cardEl.dataset.model = device.model;
       cardEl.dataset.lensModel = device.lensModel;
       cardEl.dataset.software = device.software;
-      cardEl.dataset.copyright = `© 2026 ${cardAuthor}`;
       cardEl.dataset.country = loc.country;
       cardEl.dataset.state = loc.state;
       cardEl.dataset.city = loc.city;
       cardEl.dataset.subLocation = loc.subLocation;
       cardEl.dataset.gpsLatitude = loc.lat;
       cardEl.dataset.gpsLongitude = loc.lon;
-      cardEl.dataset.dateTimeOriginal = getRandomDateTime();
+      cardEl.dataset.dateTimeOriginal = sanitizeDateTimeString(getRandomDateTime());
     });
 
     updateAllCardBadges();
@@ -1595,7 +1604,7 @@ exifDeviceSelect.addEventListener('change', () => {
 // EXIF Randomize devices listener — assigns unique metadata per card
 btnRandomExif.addEventListener('click', (e) => {
   e.preventDefault();
-  
+
   // Set global inputs to a random device (for the form display)
   const device = DEVICE_PRESETS[Math.floor(Math.random() * DEVICE_PRESETS.length)];
   const location = LOCATION_PRESETS[Math.floor(Math.random() * LOCATION_PRESETS.length)];
@@ -1606,7 +1615,6 @@ btnRandomExif.addEventListener('click', (e) => {
   exifModelInput.value = device.model;
   exifLensInput.value = device.lensModel;
   exifSoftwareInput.value = device.software;
-  exifCopyrightInput.value = copyright;
   exifDateInput.value = getRandomDateTime();
   exifCountryInput.value = location.country;
   exifStateInput.value = location.state;
@@ -1620,7 +1628,7 @@ btnRandomExif.addEventListener('click', (e) => {
   cards.forEach((el) => {
     randomizeCardExif(el as HTMLElement);
   });
-  
+
   updateAllCardBadges();
 });
 
@@ -1629,16 +1637,16 @@ document.addEventListener('click', (e) => {
   const target = e.target as HTMLElement;
   const clearBtn = target.closest('.btn-clear-field');
   if (!clearBtn) return;
-  
+
   e.preventDefault();
   const targetId = clearBtn.getAttribute('data-target');
   if (!targetId) return;
-  
+
   const presetInput = document.getElementById(targetId) as HTMLInputElement | HTMLTextAreaElement;
   if (presetInput) {
     presetInput.value = '';
   }
-  
+
   const fieldMap: Record<string, string> = {
     'exif-make': 'make',
     'exif-model': 'model',
@@ -1653,16 +1661,16 @@ document.addEventListener('click', (e) => {
     'exif-lat': 'gpsLatitude',
     'exif-lon': 'gpsLongitude'
   };
-  
+
   const attrName = fieldMap[targetId];
   if (!attrName) return;
-  
+
   const cards = batchImageList.querySelectorAll('.batch-image-item');
   cards.forEach((card) => {
     const cardEl = card as HTMLElement;
     delete cardEl.dataset[attrName];
   });
-  
+
   updateAllCardBadges();
   updateFilenamePreview();
 });
@@ -2045,25 +2053,47 @@ function getRandomDateTime(): string {
   return `${Y}:${M}:${D} ${h}:${m}:${s}`;
 }
 
+function sanitizeDateTimeString(val: any): string {
+  if (!val) return getRandomDateTime();
+  if (typeof val === 'string') {
+    if (val.includes('[object') || val.trim() === '') {
+      return getRandomDateTime();
+    }
+    return val.trim();
+  }
+  if (val instanceof Date) {
+    const Y = val.getFullYear();
+    const M = String(val.getMonth() + 1).padStart(2, '0');
+    const D = String(val.getDate()).padStart(2, '0');
+    const h = String(val.getHours()).padStart(2, '0');
+    const m = String(val.getMinutes()).padStart(2, '0');
+    const s = String(val.getSeconds()).padStart(2, '0');
+    return `${Y}:${M}:${D} ${h}:${m}:${s}`;
+  }
+  if (typeof val === 'object') {
+    if (val.value && typeof val.value === 'string') {
+      return sanitizeDateTimeString(val.value);
+    }
+  }
+  return getRandomDateTime();
+}
+
 function randomizeCardExif(cardEl: HTMLElement) {
   const device = DEVICE_PRESETS[Math.floor(Math.random() * DEVICE_PRESETS.length)];
   const location = LOCATION_PRESETS[Math.floor(Math.random() * LOCATION_PRESETS.length)];
-  const author = AUTHOR_PRESETS[Math.floor(Math.random() * AUTHOR_PRESETS.length)];
-  const copyright = `© 2026 ${author}`;
 
   cardEl.dataset.make = device.make;
   cardEl.dataset.model = device.model;
   cardEl.dataset.lensModel = device.lensModel;
   cardEl.dataset.software = device.software;
-  cardEl.dataset.copyright = copyright;
   cardEl.dataset.country = location.country;
   cardEl.dataset.state = location.state;
   cardEl.dataset.city = location.city;
   cardEl.dataset.subLocation = location.subLocation;
   cardEl.dataset.gpsLatitude = location.lat;
   cardEl.dataset.gpsLongitude = location.lon;
-  cardEl.dataset.dateTimeOriginal = getRandomDateTime();
-  
+  cardEl.dataset.dateTimeOriginal = sanitizeDateTimeString(getRandomDateTime());
+
   const badge = cardEl.querySelector('.batch-image-device-badge');
   if (badge) {
     badge.textContent = `📷 ${device.make} ${device.model} (${location.city}, ${location.state})`;
@@ -2104,7 +2134,7 @@ function getIntelligentSuffix(prompt: string, index: number): string {
 
 function populateDeviceDropdown(): void {
   exifDeviceSelect.innerHTML = '';
-  
+
   const defaultOpt = document.createElement('option');
   defaultOpt.value = '';
   defaultOpt.disabled = true;
@@ -2124,14 +2154,14 @@ function populateDeviceDropdown(): void {
   for (const [groupName, presets] of Object.entries(groups)) {
     const optgroup = document.createElement('optgroup');
     optgroup.label = groupName;
-    
+
     presets.forEach((preset) => {
       const opt = document.createElement('option');
       opt.value = JSON.stringify(preset);
       opt.textContent = preset.model;
       optgroup.appendChild(opt);
     });
-    
+
     exifDeviceSelect.appendChild(optgroup);
   }
 }
@@ -2142,14 +2172,14 @@ function updateAllCardBadges(): void {
   const presetModel = exifModelInput.value.trim();
   const presetCity = exifCityInput.value.trim();
   const presetState = exifStateInput.value.trim();
-  
+
   cards.forEach((card) => {
     const cardEl = card as HTMLElement;
     const make = cardEl.dataset.make !== undefined ? cardEl.dataset.make : presetMake;
     const model = cardEl.dataset.model !== undefined ? cardEl.dataset.model : presetModel;
     const city = cardEl.dataset.city !== undefined ? cardEl.dataset.city : presetCity;
     const state = cardEl.dataset.state !== undefined ? cardEl.dataset.state : presetState;
-    
+
     const badge = cardEl.querySelector('.batch-image-device-badge') as HTMLElement;
     if (badge) {
       if (make || model) {

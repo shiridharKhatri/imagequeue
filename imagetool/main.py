@@ -169,8 +169,6 @@ async def process_image_api(
             exif[0x9c9b] = title.encode('utf-16le')
         if author:
             exif[0x013b] = author
-        if description:
-            exif[0x010e] = description
         if make:
             exif[0x010f] = make
         if model:
@@ -230,39 +228,72 @@ async def process_image_api(
             save_kwargs["quality"] = quality
 
         # Check target size
-        if target_size_kb and target_size_kb > 0 and out_fmt != 'png':
+        if target_size_kb and target_size_kb > 0:
             target_bytes = target_size_kb * 1024
-            low_q = 5
-            high_q = quality
             best_bytes = None
 
-            for _ in range(6):
-                q = (low_q + high_q) // 2
-                save_kwargs["quality"] = q
+            if out_fmt == 'png':
+                # PNG doesn't support quality. We scale the dimensions instead.
                 img_byte_arr = io.BytesIO()
-                
-                temp_img = input_image
-                if out_fmt == 'jpeg' and temp_img.mode in ('RGBA', 'LA'):
-                    temp_img = temp_img.convert("RGB")
-                    
-                temp_img.save(img_byte_arr, exif=exif, **save_kwargs)
-                size = img_byte_arr.tell()
-                if size <= target_bytes:
+                input_image.save(img_byte_arr, exif=exif, **save_kwargs)
+                if img_byte_arr.tell() <= target_bytes:
                     best_bytes = img_byte_arr.getvalue()
-                    low_q = q + 1
                 else:
-                    high_q = q - 1
+                    low_scale = 0.1
+                    high_scale = 1.0
+                    for _ in range(6):
+                        scale = (low_scale + high_scale) / 2
+                        w = max(1, int(input_image.width * scale))
+                        h = max(1, int(input_image.height * scale))
+                        resized_img = input_image.resize((w, h), Image.Resampling.LANCZOS)
+                        img_byte_arr = io.BytesIO()
+                        resized_img.save(img_byte_arr, exif=exif, **save_kwargs)
+                        size = img_byte_arr.tell()
+                        if size <= target_bytes:
+                            best_bytes = img_byte_arr.getvalue()
+                            low_scale = scale
+                        else:
+                            high_scale = scale
+                
+                if best_bytes is None:
+                    # Fallback to minimum scale
+                    w = max(1, int(input_image.width * 0.1))
+                    h = max(1, int(input_image.height * 0.1))
+                    resized_img = input_image.resize((w, h), Image.Resampling.LANCZOS)
+                    img_byte_arr = io.BytesIO()
+                    resized_img.save(img_byte_arr, exif=exif, **save_kwargs)
+                    best_bytes = img_byte_arr.getvalue()
+                output_bytes = best_bytes
+            else:
+                low_q = 5
+                high_q = quality
+                for _ in range(6):
+                    q = (low_q + high_q) // 2
+                    save_kwargs["quality"] = q
+                    img_byte_arr = io.BytesIO()
+                    
+                    temp_img = input_image
+                    if out_fmt == 'jpeg' and temp_img.mode in ('RGBA', 'LA'):
+                        temp_img = temp_img.convert("RGB")
+                        
+                    temp_img.save(img_byte_arr, exif=exif, **save_kwargs)
+                    size = img_byte_arr.tell()
+                    if size <= target_bytes:
+                        best_bytes = img_byte_arr.getvalue()
+                        low_q = q + 1
+                    else:
+                        high_q = q - 1
 
-            if best_bytes is None:
-                save_kwargs["quality"] = 5
-                img_byte_arr = io.BytesIO()
-                temp_img = input_image
-                if out_fmt == 'jpeg' and temp_img.mode in ('RGBA', 'LA'):
-                    temp_img = temp_img.convert("RGB")
-                temp_img.save(img_byte_arr, exif=exif, **save_kwargs)
-                best_bytes = img_byte_arr.getvalue()
-            
-            output_bytes = best_bytes
+                if best_bytes is None:
+                    save_kwargs["quality"] = 5
+                    img_byte_arr = io.BytesIO()
+                    temp_img = input_image
+                    if out_fmt == 'jpeg' and temp_img.mode in ('RGBA', 'LA'):
+                        temp_img = temp_img.convert("RGB")
+                    temp_img.save(img_byte_arr, exif=exif, **save_kwargs)
+                    best_bytes = img_byte_arr.getvalue()
+                
+                output_bytes = best_bytes
         else:
             img_byte_arr = io.BytesIO()
             temp_img = input_image

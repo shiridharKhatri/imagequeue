@@ -1124,7 +1124,7 @@ body::-webkit-scrollbar-thumb:hover {
 
 /* Device badge responsiveness & horizontal text truncation */
 .batch-image-device-badge {
-  max-width: 170px;
+  max-width: 280px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

@@ -3,6 +3,33 @@
  * File: src/api/wp-uploader.ts
  */
 
+export interface WPUploadPayload {
+  image: string; // Base64 data URL (e.g. data:image/webp;base64,...)
+  title: string; // Cleaned title
+  alt_text?: string; // Alt text
+  caption?: string; // Caption
+  description?: string; // Description
+  filename: string; // Filename e.g. "my-image.webp"
+  author?: string; // Author display name or username
+  author_name?: string; // Alternative author param
+  make?: string; // Camera Make e.g. "Fujifilm" or "Apple"
+  model?: string; // Camera Model e.g. "X-H2S" or "iPhone 15 Pro"
+  lensModel?: string; // Lens e.g. "XF50-140mm"
+  lens_model?: string; // Lens alias
+  software?: string; // Software e.g. "iOS 17.5"
+  dateTimeOriginal?: string; // Date original e.g. "2026:08:20 13:01:44"
+  date_time_original?: string; // Date original alias
+  country?: string; // Country e.g. "United States"
+  state?: string; // State e.g. "California"
+  city?: string; // City e.g. "Los Angeles"
+  sub_location?: string; // Neighborhood / Sub-location e.g. "Downtown"
+  subLocation?: string; // Sub-location alias
+  latitude?: string; // Decimal Latitude e.g. "34.0522"
+  gpsLatitude?: string; // Latitude alias
+  longitude?: string; // Decimal Longitude e.g. "-118.2437"
+  gpsLongitude?: string; // Longitude alias
+}
+
 export interface WPUploadMetadata {
   title?: string;
   alt_text?: string;
@@ -21,7 +48,6 @@ export interface WPUploadMetadata {
   model?: string;
   lens_model?: string;
   software?: string;
-  copyright?: string;
   date_time_original?: string;
 }
 
@@ -35,22 +61,25 @@ export interface WPUploadResponse {
   attachment_id: number;
   url: string;
   title: string;
-  alt_text: string;
-  caption: string;
-  description: string;
-  file_path: string;
-  sizes: Record<string, string>;
+  alt_text?: string;
+  author_id?: number;
+  author_name?: string;
+  file_path?: string;
+  mime_type?: string;
+  caption?: string;
+  description?: string;
+  sizes?: Record<string, string>;
 }
 
 /**
- * Uploads an image (base64 or remote URL) along with metadata directly to the site media folder.
+ * Uploads an image payload directly to WordPress.
  */
-export async function uploadToWordPressMedia(
-  config: WPUploadConfig,
-  imageDataOrUrl: string,
-  metadata: WPUploadMetadata = {}
+export async function uploadToWordPress(
+  siteUrl: string,
+  apiKey: string,
+  payload: WPUploadPayload
 ): Promise<WPUploadResponse> {
-  let cleanSiteUrl = config.siteUrl.replace(/\/+$/, '');
+  let cleanSiteUrl = siteUrl.replace(/\/+$/, '');
   
   if (cleanSiteUrl.includes('/wp-json/')) {
     const wpJsonIndex = cleanSiteUrl.indexOf('/wp-json/');
@@ -58,14 +87,56 @@ export async function uploadToWordPressMedia(
   }
 
   const endpoint = `${cleanSiteUrl}/wp-json/ai-media/v1/upload`;
-  
-  const payload = {
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-AI-Upload-Key': apiKey
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    let errorMessage = response.statusText;
+    try {
+      const errorText = await response.text();
+      try {
+        const errorJson = JSON.parse(errorText);
+        errorMessage = errorJson.message || errorJson.error || errorMessage;
+      } catch {
+        if (errorText.includes('<title>')) {
+          const match = errorText.match(/<title>([^<]+)<\/title>/i);
+          errorMessage = match ? match[1] : errorText.substring(0, 200);
+        } else {
+          errorMessage = errorText.substring(0, 200);
+        }
+      }
+    } catch {
+      // ignore
+    }
+    throw new Error(`Upload failed (${response.status}): ${errorMessage || 'Unknown Error'}`);
+  }
+
+  const result: WPUploadResponse = await response.json();
+  return result;
+}
+
+/**
+ * Uploads an image (base64 or remote URL) along with metadata directly to the site media folder.
+ * @deprecated Use uploadToWordPress instead.
+ */
+export async function uploadToWordPressMedia(
+  config: WPUploadConfig,
+  imageDataOrUrl: string,
+  metadata: WPUploadMetadata = {}
+): Promise<WPUploadResponse> {
+  const payload: WPUploadPayload = {
     image: imageDataOrUrl,
     title: metadata.title || '',
     alt_text: metadata.alt_text || '',
     caption: metadata.caption || '',
     description: metadata.description || '',
-    filename: metadata.filename || '',
+    filename: metadata.filename || 'image.webp',
     author: metadata.author || '',
     author_name: metadata.author_name || '',
     country: metadata.country || '',
@@ -76,28 +147,12 @@ export async function uploadToWordPressMedia(
     longitude: metadata.longitude || '',
     make: metadata.make || '',
     model: metadata.model || '',
-    lens_model: metadata.lens_model || '',
+    lensModel: metadata.lens_model || '',
     software: metadata.software || '',
-    copyright: metadata.copyright || '',
-    date_time_original: metadata.date_time_original || ''
+    dateTimeOriginal: metadata.date_time_original || ''
   };
 
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-AI-Upload-Key': config.apiKey
-    },
-    body: JSON.stringify(payload)
-  });
-
-  if (!response.ok) {
-    const errorJson = await response.json().catch(() => ({ message: response.statusText }));
-    throw new Error(`WordPress Media Upload Failed (${response.status}): ${errorJson.message || response.statusText}`);
-  }
-
-  const result: WPUploadResponse = await response.json();
-  return result;
+  return uploadToWordPress(config.siteUrl, config.apiKey, payload);
 }
 
 /**

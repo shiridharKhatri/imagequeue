@@ -84,14 +84,13 @@ async function handleProcessImages(
       model: customMeta?.model ?? options.metadata?.model ?? undefined,
       lensModel: customMeta?.lensModel ?? options.metadata?.lensModel ?? undefined,
       software: customMeta?.software ?? options.metadata?.software ?? undefined,
-      copyright: customMeta?.copyright ?? options.metadata?.copyright ?? undefined,
       country: customMeta?.country ?? options.metadata?.country ?? undefined,
       state: customMeta?.state ?? options.metadata?.state ?? undefined,
       city: customMeta?.city ?? options.metadata?.city ?? undefined,
       subLocation: customMeta?.subLocation ?? options.metadata?.subLocation ?? undefined,
       gpsLatitude: customMeta?.gpsLatitude ?? options.metadata?.gpsLatitude ?? undefined,
       gpsLongitude: customMeta?.gpsLongitude ?? options.metadata?.gpsLongitude ?? undefined,
-      dateTimeOriginal: customMeta?.dateTimeOriginal ?? options.metadata?.dateTimeOriginal ?? undefined,
+      dateTimeOriginal: sanitizeDateTimeString(customMeta?.dateTimeOriginal ?? options.metadata?.dateTimeOriginal),
     };
 
     // Check card-specific BG remove, Crop, and Background Color
@@ -201,14 +200,13 @@ async function handleBuildZip(
         model: customMeta?.model ?? options.metadata?.model ?? undefined,
         lensModel: customMeta?.lensModel ?? options.metadata?.lensModel ?? undefined,
         software: customMeta?.software ?? options.metadata?.software ?? undefined,
-        copyright: customMeta?.copyright ?? options.metadata?.copyright ?? undefined,
         country: customMeta?.country ?? options.metadata?.country ?? undefined,
         state: customMeta?.state ?? options.metadata?.state ?? undefined,
         city: customMeta?.city ?? options.metadata?.city ?? undefined,
         subLocation: customMeta?.subLocation ?? options.metadata?.subLocation ?? undefined,
         gpsLatitude: customMeta?.gpsLatitude ?? options.metadata?.gpsLatitude ?? undefined,
         gpsLongitude: customMeta?.gpsLongitude ?? options.metadata?.gpsLongitude ?? undefined,
-        dateTimeOriginal: customMeta?.dateTimeOriginal ?? options.metadata?.dateTimeOriginal ?? undefined,
+        dateTimeOriginal: sanitizeDateTimeString(customMeta?.dateTimeOriginal ?? options.metadata?.dateTimeOriginal),
       };
 
       // Check card-specific BG remove, Crop, and Background Color
@@ -304,14 +302,13 @@ async function handleProcessSingleImage(
     model: customMeta?.model ?? options.metadata?.model ?? undefined,
     lensModel: customMeta?.lensModel ?? options.metadata?.lensModel ?? undefined,
     software: customMeta?.software ?? options.metadata?.software ?? undefined,
-    copyright: customMeta?.copyright ?? options.metadata?.copyright ?? undefined,
     country: customMeta?.country ?? options.metadata?.country ?? undefined,
     state: customMeta?.state ?? options.metadata?.state ?? undefined,
     city: customMeta?.city ?? options.metadata?.city ?? undefined,
     subLocation: customMeta?.subLocation ?? options.metadata?.subLocation ?? undefined,
     gpsLatitude: customMeta?.gpsLatitude ?? options.metadata?.gpsLatitude ?? undefined,
     gpsLongitude: customMeta?.gpsLongitude ?? options.metadata?.gpsLongitude ?? undefined,
-    dateTimeOriginal: customMeta?.dateTimeOriginal ?? options.metadata?.dateTimeOriginal ?? undefined,
+    dateTimeOriginal: sanitizeDateTimeString(customMeta?.dateTimeOriginal ?? options.metadata?.dateTimeOriginal),
   };
 
   // Check card-specific BG remove, Crop, and Background Color
@@ -491,7 +488,7 @@ async function processImage(
   const mimeType = formatToMime(targetFormat);
   const quality = options.quality / 100;
 
-  if (options.targetSizeKb && options.targetSizeKb > 0 && targetFormat !== 'png') {
+  if (options.targetSizeKb && options.targetSizeKb > 0) {
     rawBlob = await compressToTargetSize(canvas, mimeType, options.targetSizeKb, quality);
   } else {
     rawBlob = await canvasToBlob(canvas, mimeType, quality);
@@ -521,6 +518,49 @@ async function compressToTargetSize(
   initialQuality: number = 0.9
 ): Promise<Blob> {
   const targetBytes = targetSizeKb * 1024;
+
+  if (mimeType === 'image/png') {
+    let blob = await canvasToBlob(canvas, 'image/png');
+    if (blob.size <= targetBytes) {
+      return blob;
+    }
+
+    let low = 0.1;
+    let high = 1.0;
+    let bestBlob = blob;
+
+    for (let i = 0; i < 6; i++) {
+      const scale = (low + high) / 2;
+      const w = Math.max(1, Math.round(canvas.width * scale));
+      const h = Math.max(1, Math.round(canvas.height * scale));
+      
+      const scaledCanvas = document.createElement('canvas');
+      scaledCanvas.width = w;
+      scaledCanvas.height = h;
+      const scaledCtx = scaledCanvas.getContext('2d')!;
+      scaledCtx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, w, h);
+
+      const scaledBlob = await canvasToBlob(scaledCanvas, 'image/png');
+      if (scaledBlob.size <= targetBytes) {
+        bestBlob = scaledBlob;
+        low = scale;
+      } else {
+        high = scale;
+      }
+    }
+
+    if (bestBlob.size > targetBytes) {
+      const w = Math.max(1, Math.round(canvas.width * 0.1));
+      const h = Math.max(1, Math.round(canvas.height * 0.1));
+      const scaledCanvas = document.createElement('canvas');
+      scaledCanvas.width = w;
+      scaledCanvas.height = h;
+      const scaledCtx = scaledCanvas.getContext('2d')!;
+      scaledCtx.drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, w, h);
+      return await canvasToBlob(scaledCanvas, 'image/png');
+    }
+    return bestBlob;
+  }
 
   // Try with initial quality first
   let q = initialQuality;
@@ -680,7 +720,6 @@ function createExifApp1(metadata: {
   model?: string;
   lensModel?: string;
   software?: string;
-  copyright?: string;
   country?: string;
   state?: string;
   city?: string;
@@ -698,13 +737,11 @@ function createExifApp1(metadata: {
     }
   };
 
-  addAsciiEntry(0x010e, metadata.description);
   addAsciiEntry(0x013b, metadata.author);
   addAsciiEntry(0x9c9b, metadata.title);
   addAsciiEntry(0x010f, metadata.make);
   addAsciiEntry(0x0110, metadata.model);
   addAsciiEntry(0x0131, metadata.software);
-  addAsciiEntry(0x8298, metadata.copyright);
 
   if (metadata.dateTimeOriginal) {
     addAsciiEntry(0x0132, metadata.dateTimeOriginal); // Standard TIFF DateTime
@@ -823,7 +860,6 @@ async function injectMetadata(
     model?: string;
     lensModel?: string;
     software?: string;
-    copyright?: string;
     country?: string;
     state?: string;
     city?: string;
@@ -855,7 +891,6 @@ async function injectMetadata(
     if (metadata.model) chunks.push(createPngTextChunk('Model', metadata.model));
     if (metadata.lensModel) chunks.push(createPngTextChunk('LensModel', metadata.lensModel));
     if (metadata.software) chunks.push(createPngTextChunk('Software', metadata.software));
-    if (metadata.copyright) chunks.push(createPngTextChunk('Copyright', metadata.copyright));
     if (metadata.country) chunks.push(createPngTextChunk('Country', metadata.country));
     if (metadata.state) chunks.push(createPngTextChunk('State', metadata.state));
     if (metadata.city) chunks.push(createPngTextChunk('City', metadata.city));
@@ -1045,8 +1080,7 @@ async function processImageViaApi(
     if (meta.model) formData.append('model', meta.model);
     if (meta.lensModel) formData.append('lens_model', meta.lensModel);
     if (meta.software) formData.append('software', meta.software);
-    if (meta.copyright) formData.append('copyright', meta.copyright);
-    if (meta.dateTimeOriginal) formData.append('date_time_original', meta.dateTimeOriginal);
+    if (meta.dateTimeOriginal) formData.append('date_time_original', sanitizeDateTimeString(meta.dateTimeOriginal));
     if (meta.gpsLatitude) formData.append('gps_latitude', meta.gpsLatitude);
     if (meta.gpsLongitude) formData.append('gps_longitude', meta.gpsLongitude);
   }
@@ -1126,13 +1160,10 @@ function encodeTiff(
   ];
 
   const stringFields = [
-    { name: 'description', tag: 270 },
     { name: 'author', tag: 315 },
-    { name: 'title', tag: 270 },
     { name: 'make', tag: 271 },
     { name: 'model', tag: 272 },
     { name: 'software', tag: 305 },
-    { name: 'copyright', tag: 33432 },
     { name: 'dateTimeOriginal', tag: 306 }
   ];
 
@@ -1225,6 +1256,45 @@ function encodeTiff(
 
   bytes.set(rgbaBytes, pixelOffset);
   return bytes;
+}
+
+function getRandomDateTime(): string {
+  const d = new Date();
+  d.setHours(d.getHours() - Math.floor(Math.random() * 24));
+  d.setMinutes(Math.floor(Math.random() * 60));
+  d.setSeconds(Math.floor(Math.random() * 60));
+  const Y = d.getFullYear();
+  const M = String(d.getMonth() + 1).padStart(2, '0');
+  const D = String(d.getDate()).padStart(2, '0');
+  const h = String(d.getHours()).padStart(2, '0');
+  const m = String(d.getMinutes()).padStart(2, '0');
+  const s = String(d.getSeconds()).padStart(2, '0');
+  return `${Y}:${M}:${D} ${h}:${m}:${s}`;
+}
+
+function sanitizeDateTimeString(val: any): string {
+  if (!val) return getRandomDateTime();
+  if (typeof val === 'string') {
+    if (val.includes('[object') || val.trim() === '') {
+      return getRandomDateTime();
+    }
+    return val.trim();
+  }
+  if (val instanceof Date) {
+    const Y = val.getFullYear();
+    const M = String(val.getMonth() + 1).padStart(2, '0');
+    const D = String(val.getDate()).padStart(2, '0');
+    const h = String(val.getHours()).padStart(2, '0');
+    const m = String(val.getMinutes()).padStart(2, '0');
+    const s = String(val.getSeconds()).padStart(2, '0');
+    return `${Y}:${M}:${D} ${h}:${m}:${s}`;
+  }
+  if (typeof val === 'object') {
+    if (val.value && typeof val.value === 'string') {
+      return sanitizeDateTimeString(val.value);
+    }
+  }
+  return getRandomDateTime();
 }
 
 console.log('[Image Queue] Offscreen document loaded');
