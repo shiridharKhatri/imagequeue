@@ -61,7 +61,7 @@ async def remove_background_api(
         input_image = Image.open(io.BytesIO(contents))
         
         # Run rembg AI background removal
-        output_image = rembg.remove(input_image)
+        output_image = rembg.remove(input_image, session=rembg_session)
         
         # Auto-crop transparent boundaries if requested
         if crop:
