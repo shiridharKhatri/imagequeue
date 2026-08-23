@@ -58,7 +58,7 @@ export class SettingsStorage {
       const saved = result[STORAGE_KEY_SETTINGS];
 
       const merged = { ...DEFAULT_SETTINGS, ...saved };
-      if (!merged.customBgRemovalUrl || !merged.customBgRemovalUrl.trim()) {
+      if (!merged.customBgRemovalUrl || !merged.customBgRemovalUrl.trim() || merged.customBgRemovalUrl === 'http://localhost:8000') {
         merged.customBgRemovalUrl = 'https://imagetool.api.dailyworkreport.com';
       }
       return merged;
