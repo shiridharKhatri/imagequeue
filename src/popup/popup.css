@@ -74,6 +74,7 @@
 
 html {
   font-size: 16px;
+  overflow-x: hidden;
 }
 
 body {
@@ -1124,10 +1125,11 @@ body::-webkit-scrollbar-thumb:hover {
 
 /* Device badge responsiveness & horizontal text truncation */
 .batch-image-device-badge {
-  max-width: 280px;
+  max-width: 140px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex-shrink: 1;
 }
 
 /* Force flex container columns to shrink so text-overflow ellipsis truncates long prompts/names */

@@ -609,7 +609,7 @@ async function showBatchView(queue: QueueData): Promise<void> {
           <div class="batch-image-rename-row" style="display:flex; align-items:center; gap:6px; margin-bottom:6px; width:100%;">
             <input type="text" class="input batch-image-name-input" data-id="${item.id}" value="${defaultName}" placeholder="Filename" style="flex:1; min-width:80px; height:24px; font-size:11px;" />
             <span class="batch-image-ext-preview" style="flex-shrink:0;">${isProductImg ? '.png' : '.webp'}</span>
-            <span class="batch-image-device-badge" style="font-size:9px; color:var(--text-muted); background:rgba(255,255,255,0.05); padding:1px 6px; border-radius:4px; white-space:nowrap; border:1px solid rgba(255,255,255,0.03); flex-shrink:0;">📷 Picking device...</span>
+            <span class="batch-image-device-badge" style="font-size:9px; color:var(--text-muted); background:rgba(255,255,255,0.05); padding:1px 6px; border-radius:4px; border:1px solid rgba(255,255,255,0.03);">📷 Picking device...</span>
           </div>
           <div class="batch-image-controls-row" style="display:flex; align-items:center; gap:6px; width:100%;">
             <select class="select batch-resolution-select" data-id="${item.id}" style="flex-shrink:0; width:110px; height:24px; padding:0 18px 0 6px !important; background-position:right 6px center !important; font-size:9px; background-color:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); color:var(--text-normal); border-radius:4px; cursor:pointer; font-weight:500;">
