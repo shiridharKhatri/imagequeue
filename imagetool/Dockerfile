@@ -27,8 +27,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Pre-download the rembg model so it is baked into the image.
 # This prevents downloading a ~176MB model on every startup and speeds up deployments.
-RUN mkdir -p /app/models && \
-    curl -L -o /app/models/u2net.onnx https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2net.onnx
+RUN mkdir -p /app/models/models/u2net && \
+    curl -L -o /app/models/models/u2net/u2net.onnx https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2net.onnx
 
 # Copy the rest of the application code
 COPY . .

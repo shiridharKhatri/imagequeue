@@ -22,13 +22,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Initialize global rembg session to avoid reloading model on every request
+from rembg import new_session
+print("Initializing rembg session...")
+try:
+    rembg_session = new_session("u2net")
+    print("rembg session initialized successfully.")
+except Exception as e:
+    print("Failed to initialize rembg session:", e)
+    rembg_session = None
+
 @app.on_event("startup")
 async def startup_event():
     print("Pre-loading rembg AI model into memory...")
     try:
         # Create a tiny 1x1 dummy image to force model load
         dummy_img = Image.new("RGBA", (1, 1), (0, 0, 0, 0))
-        rembg.remove(dummy_img)
+        rembg.remove(dummy_img, session=rembg_session)
         print("rembg AI model warmed up successfully and cached in memory!")
     except Exception as e:
         print("Failed to warm up rembg model:", e)
@@ -103,7 +113,7 @@ async def process_image_api(
 
         # 1. Background removal
         if bg_remove:
-            input_image = rembg.remove(input_image)
+            input_image = rembg.remove(input_image, session=rembg_session)
 
         # 2. Transparent border crop
         if crop:
