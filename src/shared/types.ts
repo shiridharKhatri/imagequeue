@@ -203,7 +203,7 @@ export interface ExtensionSettings {
   wpApiKey: string;
   /** Default Author Name */
   authorName: string;
-  /** Custom AI Background Removal API URL (e.g. http://localhost:8000/remove-bg) */
+  /** Custom AI Background Removal API URL (e.g. https://imagetool.api.dailyworkreport.com/remove-bg) */
   customBgRemovalUrl?: string;
   /** Image processing mode (local JS canvas vs Python FastAPI server) */
   imageProcessingMode?: 'local' | 'api';
