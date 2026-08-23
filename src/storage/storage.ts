@@ -58,8 +58,11 @@ export class SettingsStorage {
       const saved = result[STORAGE_KEY_SETTINGS];
 
       const merged = { ...DEFAULT_SETTINGS, ...saved };
-      if (!merged.customBgRemovalUrl || !merged.customBgRemovalUrl.trim() || merged.customBgRemovalUrl === 'http://localhost:8000') {
+      const cleanUrl = merged.customBgRemovalUrl ? merged.customBgRemovalUrl.trim().replace(/\/+$/, '') : '';
+      if (!cleanUrl || cleanUrl === 'http://localhost:8000' || cleanUrl === 'localhost:8000' || cleanUrl.includes('localhost:8000')) {
         merged.customBgRemovalUrl = 'https://imagetool.api.dailyworkreport.com';
+        // Persist the migrated URL to storage
+        await this.save(merged);
       }
       return merged;
     } catch (err) {
