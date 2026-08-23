@@ -22,6 +22,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.on_event("startup")
+async def startup_event():
+    print("Pre-loading rembg AI model into memory...")
+    try:
+        # Create a tiny 1x1 dummy image to force model load
+        dummy_img = Image.new("RGBA", (1, 1), (0, 0, 0, 0))
+        rembg.remove(dummy_img)
+        print("rembg AI model warmed up successfully and cached in memory!")
+    except Exception as e:
+        print("Failed to warm up rembg model:", e)
+
 @app.get("/")
 async def health_check():
     return {"status": "ok", "service": "Image Tool API"}
