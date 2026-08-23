@@ -27,6 +27,7 @@ import {
   type SaveSettingsPayload,
 } from '../shared/messages';
 import type { QueueData, DiagnosticsInfo, ProcessingOptions } from '../shared/types';
+import { uploadToWordPress } from '../api/wp-uploader';
 import {
   QUEUE_RECOVERY_ALARM,
   QUEUE_RECOVERY_INTERVAL_MIN,
@@ -396,6 +397,29 @@ async function handleMessage(
         });
       break;
     }
+    case MSG.UPLOAD_WP: {
+      const { options, author } = message.payload as { options: ProcessingOptions; author: string };
+      
+      // Perform upload asynchronously in the background so it doesn't block the message response
+      uploadBatchToWordPress(options, author)
+        .then(() => {
+          chrome.storage.local.set({ wp_upload_state: { status: 'idle' } });
+          chrome.runtime.sendMessage({
+            type: 'WP_UPLOAD_PROGRESS',
+            payload: { status: 'success', total: queueManager.getQueue().items.filter(i => i.status === 'completed').length }
+          }).catch(() => {});
+        })
+        .catch((err) => {
+          chrome.storage.local.set({ wp_upload_state: { status: 'idle' } });
+          chrome.runtime.sendMessage({
+            type: 'WP_UPLOAD_PROGRESS',
+            payload: { status: 'error', error: String(err) }
+          }).catch(() => {});
+        });
+
+      sendResponse({ success: true });
+      break;
+    }
     // ─── ChatGPT & Gemini tabs ────────────────────────────
 
     case MSG.OPEN_CHATGPT: {
@@ -614,6 +638,133 @@ async function downloadIndividualImages(options: ProcessingOptions): Promise<voi
         filename: response.filename!,
         saveAs: false,
       });
+    }
+  }
+}
+
+async function uploadBatchToWordPress(options: ProcessingOptions, author: string): Promise<void> {
+  const queue = queueManager.getQueue();
+  const completedItems = queue.items.filter((i) => i.status === 'completed');
+  if (completedItems.length === 0) return;
+
+  const result = await chrome.storage.local.get('iq_settings');
+  const settings = result['iq_settings'] || {};
+  if (!settings.wpSiteUrl || !settings.wpApiKey) {
+    throw new Error("WordPress URL or API Key is missing in settings.");
+  }
+
+  // Set initial progress in storage
+  await chrome.storage.local.set({
+    wp_upload_state: {
+      status: 'uploading',
+      current: 0,
+      total: completedItems.length
+    }
+  });
+
+  await ensureOffscreenDocument();
+
+  for (let i = 0; i < completedItems.length; i++) {
+    const item = completedItems[i];
+    
+    // Broadcast progress to popup (if open)
+    try {
+      chrome.runtime.sendMessage({
+        type: 'WP_UPLOAD_PROGRESS',
+        payload: { status: 'uploading', current: i + 1, total: completedItems.length }
+      }).catch(() => {});
+    } catch (e) {}
+
+    // Update persistent storage progress
+    await chrome.storage.local.set({
+      wp_upload_state: {
+        status: 'uploading',
+        current: i + 1,
+        total: completedItems.length
+      }
+    });
+
+    let customName = '';
+    if (options.customFilenames && options.customFilenames[item.id]) {
+      customName = options.customFilenames[item.id];
+    } else {
+      const prefix = options.filenamePrefix || 'image';
+      customName = `${prefix}-${String(i + 1).padStart(2, '0')}`;
+    }
+
+    const itemOptions = {
+      ...options,
+      customFilenames: {
+        [item.id]: customName
+      }
+    };
+
+    const response = await chrome.runtime.sendMessage({
+      type: 'OFFSCREEN_PROCESS_SINGLE_IMAGE',
+      payload: {
+        itemId: item.id,
+        options: itemOptions,
+        prompt: item.prompt,
+      },
+    }) as { blobUrl?: string; filename?: string; error?: string } | undefined;
+
+    if (response?.error) {
+      throw new Error(response.error);
+    }
+
+    if (response?.blobUrl) {
+      // Fetch processed blob from the blobUrl
+      const res = await fetch(response.blobUrl);
+      const processedBlob = await res.blob();
+
+      // Convert blob to base64 inside service worker (no FileReader)
+      const buffer = await processedBlob.arrayBuffer();
+      let binary = '';
+      const bytes = new Uint8Array(buffer);
+      const len = bytes.byteLength;
+      for (let j = 0; j < len; j++) {
+        binary += String.fromCharCode(bytes[j]);
+      }
+      const base64 = btoa(binary);
+      const mime = processedBlob.type;
+      const base64Data = `data:${mime};base64,${base64}`;
+
+      const filename = response.filename || `${customName}.webp`;
+      const cleanedTitle = filename.replace(/\.[a-z0-9]+$/i, '')
+        .split(/[-_]+/)
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+
+      const itemMetadata = (options.customMetadata && options.customMetadata[item.id]) || options.metadata;
+
+      const payload = {
+        image: base64Data,
+        title: cleanedTitle,
+        alt_text: cleanedTitle,
+        caption: '',
+        description: itemMetadata?.description || '',
+        filename: filename,
+        author: author,
+        author_name: author,
+        make: itemMetadata?.make || '',
+        model: itemMetadata?.model || '',
+        lensModel: itemMetadata?.lensModel || '',
+        lens_model: itemMetadata?.lensModel || '',
+        software: itemMetadata?.software || '',
+        dateTimeOriginal: itemMetadata?.dateTimeOriginal || '',
+        date_time_original: itemMetadata?.dateTimeOriginal || '',
+        country: itemMetadata?.country || '',
+        state: itemMetadata?.state || '',
+        city: itemMetadata?.city || '',
+        sub_location: itemMetadata?.subLocation || '',
+        subLocation: itemMetadata?.subLocation || '',
+        latitude: itemMetadata?.gpsLatitude || '',
+        gpsLatitude: itemMetadata?.gpsLatitude || '',
+        longitude: itemMetadata?.gpsLongitude || '',
+        gpsLongitude: itemMetadata?.gpsLongitude || ''
+      };
+
+      await uploadToWordPress(settings.wpSiteUrl, settings.wpApiKey, payload);
     }
   }
 }

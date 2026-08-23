@@ -1087,84 +1087,20 @@ async function handleUploadWP(): Promise<void> {
   }
 
   btnUploadWP.disabled = true;
-  const originalHTML = btnUploadWP.innerHTML;
   btnUploadWP.innerHTML = '<div class="spinner"></div> Uploading...';
 
   try {
     const options = getProcessingOptions();
-    const prefix = options.filenamePrefix || 'image';
+    const author = authorNameInput.value.trim();
 
-    for (let i = 0; i < completedItems.length; i++) {
-      const item = completedItems[i];
-      btnUploadWP.innerHTML = `<div class="spinner"></div> Uploading ${i + 1}/${completedItems.length}...`;
-
-      // Call offscreen document to process single image (handles sizing, formats, quality, metadata injection, background removal, crop, adjustments etc. perfectly)
-      const response = await sendToBackground<{ blobUrl?: string; filename?: string; error?: string }>(
-        MSG.PROCESS_SINGLE_IMAGE,
-        { itemId: item.id, options, prompt: item.prompt }
-      );
-
-      if (!response || response.error || !response.blobUrl) {
-        throw new Error(response?.error || `Failed to process image ${i + 1} in offscreen document`);
-      }
-
-      // Fetch processed blob from the blobUrl
-      const res = await fetch(response.blobUrl);
-      const processedBlob = await res.blob();
-
-      // Convert processed blob to base64 data URL
-      const base64Data = await blobToBase64(processedBlob);
-
-      // Suffix/filename logic
-      const filename = response.filename || `${prefix}-${getIntelligentSuffix(item.prompt, i)}.webp`;
-      const customName = filename.replace(/\.[a-z0-9]+$/i, '');
-
-      const itemMetadata = (options.customMetadata && options.customMetadata[item.id]) || options.metadata;
-
-      // Use image name for all WP text fields
-      const title = cleanTitle(customName);
-      const author = authorNameInput.value.trim();
-
-      const payload: WPUploadPayload = {
-        image: base64Data,
-        title: title,
-        alt_text: title,
-        caption: '',
-        description: itemMetadata?.description || '',
-        filename: filename,
-        author: author,
-        author_name: author,
-        make: itemMetadata?.make || '',
-        model: itemMetadata?.model || '',
-        lensModel: itemMetadata?.lensModel || '',
-        lens_model: itemMetadata?.lensModel || '',
-        software: itemMetadata?.software || '',
-        dateTimeOriginal: sanitizeDateTimeString(itemMetadata?.dateTimeOriginal),
-        date_time_original: sanitizeDateTimeString(itemMetadata?.dateTimeOriginal),
-        country: itemMetadata?.country || '',
-        state: itemMetadata?.state || '',
-        city: itemMetadata?.city || '',
-        sub_location: itemMetadata?.subLocation || '',
-        subLocation: itemMetadata?.subLocation || '',
-        latitude: itemMetadata?.gpsLatitude || '',
-        gpsLatitude: itemMetadata?.gpsLatitude || '',
-        longitude: itemMetadata?.gpsLongitude || '',
-        gpsLongitude: itemMetadata?.gpsLongitude || ''
-      };
-
-      // Upload this item
-      await uploadToWordPress(settings.wpSiteUrl, settings.wpApiKey, payload);
-    }
-
-    showBanner('success', `Successfully uploaded ${completedItems.length} images to WordPress!`);
-    alert(`Successfully uploaded ${completedItems.length} images to WordPress Media Library!`);
+    // Call background service worker to perform the upload in the background
+    await sendToBackground(MSG.UPLOAD_WP, { options, author });
   } catch (err) {
-    console.error('WP Upload Error:', err);
+    console.error('WP Upload trigger failed:', err);
     showBanner('error', `WordPress Error: ${err instanceof Error ? err.message : err}`);
     alert(`Failed to upload to WordPress: ${err instanceof Error ? err.message : err}`);
-  } finally {
     btnUploadWP.disabled = false;
-    btnUploadWP.innerHTML = originalHTML;
+    btnUploadWP.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Send to WordPress`;
   }
 }
 
@@ -1239,6 +1175,23 @@ chrome.runtime.onMessage.addListener(
       }).catch(() => { });
     } else if (message.type === 'LOG_ENTRY') {
       appendLogToPopup(message.payload as any);
+    } else if (message.type === MSG.WP_UPLOAD_PROGRESS) {
+      const { status, current, total, error } = message.payload as { status: 'uploading' | 'success' | 'error'; current?: number; total: number; error?: string };
+      const originalHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Send to WordPress`;
+      if (status === 'uploading') {
+        btnUploadWP.disabled = true;
+        btnUploadWP.innerHTML = `<div class="spinner"></div> Uploading ${current}/${total}...`;
+      } else if (status === 'success') {
+        btnUploadWP.disabled = false;
+        btnUploadWP.innerHTML = originalHTML;
+        showBanner('success', `Successfully uploaded ${total} images to WordPress!`);
+        alert(`Successfully uploaded ${total} images to WordPress Media Library!`);
+      } else if (status === 'error') {
+        btnUploadWP.disabled = false;
+        btnUploadWP.innerHTML = originalHTML;
+        showBanner('error', `WordPress Error: ${error}`);
+        alert(`Failed to upload to WordPress: ${error}`);
+      }
     }
   }
 );
@@ -1332,6 +1285,18 @@ async function init(): Promise<void> {
     }
   } catch (err) {
     console.error('Failed to load customBgRemovalUrl settings in init:', err);
+  }
+
+  // Check for background WordPress upload progress
+  try {
+    const res = await chrome.storage.local.get('wp_upload_state');
+    const state = res.wp_upload_state;
+    if (state && state.status === 'uploading') {
+      btnUploadWP.disabled = true;
+      btnUploadWP.innerHTML = `<div class="spinner"></div> Uploading ${state.current}/${state.total}...`;
+    }
+  } catch (err) {
+    console.error('Failed to load wp_upload_state in init:', err);
   }
 
   // Populate dropdown preset list first so it's always ready
