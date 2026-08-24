@@ -104,8 +104,11 @@ async function handleProcessImages(
     const itemResolution = (options.customResolutions && options.customResolutions[item.id]) || options.resolution;
 
     // Determine target format (per-card format overrides global)
-    const cardFmt = options.customFormats?.[item.id];
-    let fmt: ImageFormat = (isBgRemove || isCrop) && !isBgColor ? 'png' : ((cardFmt || options.format) as ImageFormat);
+    const cardFmt = options.customFormats?.[item.id] || options.format;
+    const isAlphaSupported = ['png', 'webp', 'avif'].includes(cardFmt.toLowerCase());
+    let fmt: ImageFormat = (isBgRemove || isCrop) && !isBgColor
+      ? (isAlphaSupported ? (cardFmt as ImageFormat) : 'png')
+      : (cardFmt as ImageFormat);
     if (fmt === 'def') {
       fmt = getExtensionFromMime(stored.blob.type) as ImageFormat;
     }
@@ -221,8 +224,11 @@ async function handleBuildZip(
       const itemResolution = (options.customResolutions && options.customResolutions[item.id]) || options.resolution;
 
       // Determine target format (per-card format overrides global)
-      const cardFmt = options.customFormats?.[item.id];
-      let fmt: ImageFormat = (isBgRemove || isCrop) && !isBgColor ? 'png' : ((cardFmt || options.format) as ImageFormat);
+      const cardFmt = options.customFormats?.[item.id] || options.format;
+      const isAlphaSupported = ['png', 'webp', 'avif'].includes(cardFmt.toLowerCase());
+      let fmt: ImageFormat = (isBgRemove || isCrop) && !isBgColor
+        ? (isAlphaSupported ? (cardFmt as ImageFormat) : 'png')
+        : (cardFmt as ImageFormat);
       if (fmt === 'def') {
         fmt = getExtensionFromMime(stored.blob.type) as ImageFormat;
       }
@@ -324,8 +330,11 @@ async function handleProcessSingleImage(
   const itemResolution = (options.customResolutions && options.customResolutions[itemId]) || options.resolution;
 
   // Determine target format (per-card format overrides global)
-  const cardFmt = options.customFormats?.[itemId];
-  let fmt: ImageFormat = (isBgRemove || isCrop) && !isBgColor ? 'png' : ((cardFmt || options.format) as ImageFormat);
+  const cardFmt = options.customFormats?.[itemId] || options.format;
+  const isAlphaSupported = ['png', 'webp', 'avif'].includes(cardFmt.toLowerCase());
+  let fmt: ImageFormat = (isBgRemove || isCrop) && !isBgColor
+    ? (isAlphaSupported ? (cardFmt as ImageFormat) : 'png')
+    : (cardFmt as ImageFormat);
   if (fmt === 'def') {
     fmt = getExtensionFromMime(stored.blob.type) as ImageFormat;
   }

@@ -734,20 +734,18 @@ async function showBatchView(queue: QueueData): Promise<void> {
         container.style.background = 'none';
       }
 
-      // Update extension preview based on per-card format dropdown
+      // Update extension preview based on per-card format dropdown and transparency support
       const extPreview = el.querySelector('.batch-image-ext-preview');
       if (extPreview) {
-        if ((isBg || isCrop) && !isBgCol) {
-          extPreview.textContent = '.png';
-        } else {
-          const cardFmt = fmtSelect?.value || 'default';
-          if (cardFmt !== 'default') {
-            extPreview.textContent = `.${cardFmt}`;
-          } else {
-            const formatInput = document.querySelector('input[name="format"]:checked') as HTMLInputElement;
-            extPreview.textContent = `.${formatInput?.value || 'webp'}`;
-          }
-        }
+        const formatInput = document.querySelector('input[name="format"]:checked') as HTMLInputElement;
+        const globalVal = formatInput?.value || 'webp';
+        const cardFmt = fmtSelect?.value || 'default';
+        const chosenFmt = cardFmt !== 'default' ? cardFmt : globalVal;
+        const isAlpha = ['png', 'webp', 'avif'].includes(chosenFmt.toLowerCase());
+        const finalExt = (isBg || isCrop) && !isBgCol
+          ? (isAlpha ? chosenFmt : 'png')
+          : chosenFmt;
+        extPreview.textContent = `.${finalExt}`;
       }
     };
 
@@ -771,17 +769,15 @@ async function showBatchView(queue: QueueData): Promise<void> {
         const bgMode = bgSelect?.value || 'original';
         const isBgOrCrop = (bgMode === 'transparent' || bgMode === 'color') || cropCheck?.checked;
         const isBgCol = bgMode === 'color';
-        if (isBgOrCrop && !isBgCol) {
-          extPreview.textContent = '.png';
-        } else {
-          const cardFmt = fmtSelect.value || 'default';
-          if (cardFmt !== 'default') {
-            extPreview.textContent = `.${cardFmt}`;
-          } else {
-            const formatInput = document.querySelector('input[name="format"]:checked') as HTMLInputElement;
-            extPreview.textContent = `.${formatInput?.value || 'webp'}`;
-          }
-        }
+        const formatInput = document.querySelector('input[name="format"]:checked') as HTMLInputElement;
+        const globalVal = formatInput?.value || 'webp';
+        const cardFmt = fmtSelect.value || 'default';
+        const chosenFmt = cardFmt !== 'default' ? cardFmt : globalVal;
+        const isAlpha = ['png', 'webp', 'avif'].includes(chosenFmt.toLowerCase());
+        const finalExt = isBgOrCrop && !isBgCol
+          ? (isAlpha ? chosenFmt : 'png')
+          : chosenFmt;
+        extPreview.textContent = `.${finalExt}`;
       }
       saveOptions();
     });
@@ -1007,7 +1003,6 @@ function updateExtensionPreviews(): void {
     'input[name="format"]:checked'
   ) as HTMLInputElement;
   const globalVal = formatInput?.value || 'webp';
-  const globalExt = globalVal === 'def' ? ' (Default)' : `.${globalVal}`;
 
   const cards = batchImageList.querySelectorAll('.batch-image-item');
   cards.forEach((card) => {
@@ -1015,20 +1010,20 @@ function updateExtensionPreviews(): void {
     const fmtSelect = card.querySelector('.batch-format-select') as HTMLSelectElement;
     if (!extPreview) return;
 
-    // Check if bg remove/crop is active (which forces png)
+    // Check if bg remove/crop is active
     const bgSelect = card.querySelector('.batch-bg-select') as HTMLSelectElement;
     const cropCheck = card.querySelector('.batch-crop-check') as HTMLInputElement;
     const bgMode = bgSelect?.value || 'original';
     const isBgOrCrop = (bgMode === 'transparent' || bgMode === 'color') || cropCheck?.checked;
     const isBgCol = bgMode === 'color';
 
-    if (isBgOrCrop && !isBgCol) {
-      extPreview.textContent = '.png';
-    } else if (fmtSelect && fmtSelect.value !== 'default') {
-      extPreview.textContent = `.${fmtSelect.value}`;
-    } else {
-      extPreview.textContent = globalExt;
-    }
+    const cardFmt = fmtSelect && fmtSelect.value !== 'default' ? fmtSelect.value : globalVal;
+    const isAlpha = ['png', 'webp', 'avif'].includes(cardFmt.toLowerCase());
+    const finalExt = isBgOrCrop && !isBgCol
+      ? (isAlpha ? cardFmt : 'png')
+      : cardFmt;
+
+    extPreview.textContent = `.${finalExt}`;
   });
 }
 
