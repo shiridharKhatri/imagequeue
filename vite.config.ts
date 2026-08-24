@@ -57,6 +57,7 @@ export default defineConfig(({ mode }) => ({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    modulePreload: false,
     sourcemap: mode === 'development' ? 'inline' : false,
     minify: mode === 'production',
     rollupOptions: {
