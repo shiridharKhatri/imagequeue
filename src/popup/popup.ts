@@ -1659,7 +1659,7 @@ btnDownloadIndividual.addEventListener('click', async () => {
     showBanner('error', `Download error: ${err}`);
   } finally {
     btnDownloadIndividual.disabled = false;
-    btnDownloadIndividual.innerHTML = 'Download Indiv.';
+    btnDownloadIndividual.innerHTML = 'Individual';
   }
 });
 
