@@ -614,6 +614,9 @@ async function showBatchView(queue: QueueData): Promise<void> {
           <div class="batch-image-rename-row" style="display:flex; align-items:center; gap:6px; margin-bottom:6px; width:100%;">
             <input type="text" class="input batch-image-name-input" data-id="${item.id}" value="${defaultName}" placeholder="Filename" style="flex:1; min-width:80px; height:24px; font-size:11px;" />
             <span class="batch-image-ext-preview" style="flex-shrink:0;">${isProductImg ? '.png' : '.webp'}</span>
+            <button class="btn btn-ghost batch-download-single-btn" data-id="${item.id}" title="Download this image" style="height: 24px; width: 24px; padding: 0; min-height: unset; display: flex; align-items: center; justify-content: center; flex-shrink:0; border:1px solid rgba(255,255,255,0.08); background:rgba(255,255,255,0.03); border-radius:4px; color:var(--text-secondary); cursor:pointer;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            </button>
             <span class="batch-image-device-badge" style="font-size:9px; color:var(--text-muted); background:rgba(255,255,255,0.05); padding:1px 6px; border-radius:4px; border:1px solid rgba(255,255,255,0.03);">📷 Picking device...</span>
           </div>
           <div class="batch-image-controls-row" style="display:flex; align-items:center; gap:6px; width:100%; flex-wrap:wrap;">
@@ -798,6 +801,15 @@ async function showBatchView(queue: QueueData): Promise<void> {
         });
       }
     });
+
+    // Single card download button listener
+    const singleDownloadBtn = el.querySelector('.batch-download-single-btn') as HTMLButtonElement;
+    if (singleDownloadBtn) {
+      singleDownloadBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        downloadSingleCardImage(item.id);
+      });
+    }
 
     batchImageList.appendChild(el);
   });
@@ -1137,6 +1149,76 @@ async function handleDownloadZip(): Promise<void> {
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       Download ZIP
     `;
+  }
+}
+
+async function downloadSingleCardImage(itemId: string): Promise<void> {
+  const cardEl = batchImageList.querySelector(`.batch-image-item[data-id="${itemId}"]`) as HTMLElement;
+  if (!cardEl) return;
+
+  const btn = cardEl.querySelector('.batch-download-single-btn') as HTMLButtonElement;
+  let originalHtml = '';
+  if (btn) {
+    originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<div class="spinner" style="width: 10px; height: 10px; border-width: 1.5px; border-color: var(--text-muted); border-top-color: transparent;"></div>';
+  }
+
+  try {
+    const item = currentQueue?.items.find(i => i.id === itemId);
+    if (!item) {
+      throw new Error('Queue item not found');
+    }
+
+    const options = getProcessingOptions();
+    // Choose custom name if specified, otherwise index-based
+    let customName = '';
+    const nameInput = cardEl.querySelector('.batch-image-name-input') as HTMLInputElement;
+    if (nameInput && nameInput.value.trim()) {
+      customName = nameInput.value.trim();
+    } else {
+      const cards = Array.from(batchImageList.querySelectorAll('.batch-image-item'));
+      const idx = cards.indexOf(cardEl);
+      const prefix = options.filenamePrefix || 'image';
+      customName = `${prefix}-${String(idx + 1).padStart(2, '0')}`;
+    }
+
+    const itemOptions = {
+      ...options,
+      customFilenames: {
+        [itemId]: customName
+      }
+    };
+
+    const response = await sendToBackground<{ blobUrl?: string; filename?: string; error?: string }>(
+      MSG.PROCESS_SINGLE_IMAGE,
+      {
+        itemId,
+        options: itemOptions,
+        prompt: item.prompt,
+      }
+    );
+
+    if (response?.error) {
+      throw new Error(response.error);
+    }
+
+    if (response?.blobUrl) {
+      await chrome.downloads.download({
+        url: response.blobUrl,
+        filename: response.filename!,
+        saveAs: false, // Save automatically
+      });
+    } else {
+      throw new Error('Failed to generate image URL');
+    }
+  } catch (err) {
+    showBanner('error', `Download error: ${err}`);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = originalHtml;
+    }
   }
 }
 
