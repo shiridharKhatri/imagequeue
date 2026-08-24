@@ -1619,7 +1619,7 @@ btnDownloadIndividual.addEventListener('click', async () => {
     showBanner('error', `Download error: ${err}`);
   } finally {
     btnDownloadIndividual.disabled = false;
-    btnDownloadIndividual.innerHTML = 'Download Individual Images';
+    btnDownloadIndividual.innerHTML = 'Download Indiv.';
   }
 });
 
