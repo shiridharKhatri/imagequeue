@@ -103,8 +103,9 @@ async function handleProcessImages(
 
     const itemResolution = (options.customResolutions && options.customResolutions[item.id]) || options.resolution;
 
-    // Determine target format
-    let fmt = (isBgRemove || isCrop) && !isBgColor ? 'png' : options.format;
+    // Determine target format (per-card format overrides global)
+    const cardFmt = options.customFormats?.[item.id];
+    let fmt: ImageFormat = (isBgRemove || isCrop) && !isBgColor ? 'png' : ((cardFmt || options.format) as ImageFormat);
     if (fmt === 'def') {
       fmt = getExtensionFromMime(stored.blob.type) as ImageFormat;
     }
@@ -219,8 +220,9 @@ async function handleBuildZip(
 
       const itemResolution = (options.customResolutions && options.customResolutions[item.id]) || options.resolution;
 
-      // Determine target format
-      let fmt = (isBgRemove || isCrop) && !isBgColor ? 'png' : options.format;
+      // Determine target format (per-card format overrides global)
+      const cardFmt = options.customFormats?.[item.id];
+      let fmt: ImageFormat = (isBgRemove || isCrop) && !isBgColor ? 'png' : ((cardFmt || options.format) as ImageFormat);
       if (fmt === 'def') {
         fmt = getExtensionFromMime(stored.blob.type) as ImageFormat;
       }
@@ -321,8 +323,9 @@ async function handleProcessSingleImage(
 
   const itemResolution = (options.customResolutions && options.customResolutions[itemId]) || options.resolution;
 
-  // Determine target format
-  let fmt = (isBgRemove || isCrop) && !isBgColor ? 'png' : options.format;
+  // Determine target format (per-card format overrides global)
+  const cardFmt = options.customFormats?.[itemId];
+  let fmt: ImageFormat = (isBgRemove || isCrop) && !isBgColor ? 'png' : ((cardFmt || options.format) as ImageFormat);
   if (fmt === 'def') {
     fmt = getExtensionFromMime(stored.blob.type) as ImageFormat;
   }

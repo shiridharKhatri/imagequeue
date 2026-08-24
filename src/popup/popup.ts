@@ -597,6 +597,11 @@ async function showBatchView(queue: QueueData): Promise<void> {
       defaultCrop = saved.crop[item.id];
     }
 
+    let defaultFmt = isProductImg ? 'png' : 'webp';
+    if (saved && saved.customFormats && saved.customFormats[item.id]) {
+      defaultFmt = saved.customFormats[item.id];
+    }
+
     el.innerHTML = `
       <div class="batch-image-row">
         <div class="batch-image-index-badge">
@@ -611,14 +616,23 @@ async function showBatchView(queue: QueueData): Promise<void> {
             <span class="batch-image-ext-preview" style="flex-shrink:0;">${isProductImg ? '.png' : '.webp'}</span>
             <span class="batch-image-device-badge" style="font-size:9px; color:var(--text-muted); background:rgba(255,255,255,0.05); padding:1px 6px; border-radius:4px; border:1px solid rgba(255,255,255,0.03);">📷 Picking device...</span>
           </div>
-          <div class="batch-image-controls-row" style="display:flex; align-items:center; gap:6px; width:100%;">
+          <div class="batch-image-controls-row" style="display:flex; align-items:center; gap:6px; width:100%; flex-wrap:wrap;">
             <select class="select batch-resolution-select" data-id="${item.id}" style="flex-shrink:0; width:110px; height:24px; padding:0 18px 0 6px !important; background-position:right 6px center !important; font-size:9px; background-color:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); color:var(--text-normal); border-radius:4px; cursor:pointer; font-weight:500;">
               <option value="default"${defaultRes === 'default' ? ' selected' : ''}>Global Size</option>
               <option value="0"${defaultRes === '0' ? ' selected' : ''}>Original</option>
               <option value="872x560"${defaultRes === '872x560' ? ' selected' : ''}>872x560 (Blog)</option>
               <option value="340x340"${defaultRes === '340x340' ? ' selected' : ''}>340x340 (Product)</option>
+              <option value="500x500"${defaultRes === '500x500' ? ' selected' : ''}>500x500 (Custom)</option>
               <option value="1200x628"${defaultRes === '1200x628' ? ' selected' : ''}>1200x628 (WP Wide)</option>
               <option value="1200x1200"${defaultRes === '1200x1200' ? ' selected' : ''}>1200x1200 (Square)</option>
+            </select>
+            <select class="select batch-format-select" data-id="${item.id}" style="flex-shrink:0; width:70px; height:24px; padding:0 18px 0 6px !important; background-position:right 6px center !important; font-size:9px; background-color:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); color:var(--text-normal); border-radius:4px; cursor:pointer; font-weight:500;">
+              <option value="default"${defaultFmt === 'default' ? ' selected' : ''}>Global</option>
+              <option value="webp"${defaultFmt === 'webp' ? ' selected' : ''}>WebP</option>
+              <option value="jpg"${defaultFmt === 'jpg' ? ' selected' : ''}>JPEG</option>
+              <option value="png"${defaultFmt === 'png' ? ' selected' : ''}>PNG</option>
+              <option value="avif"${defaultFmt === 'avif' ? ' selected' : ''}>AVIF</option>
+              <option value="tiff"${defaultFmt === 'tiff' ? ' selected' : ''}>TIFF</option>
             </select>
             <select class="select batch-bg-select" data-id="${item.id}" style="flex-shrink:0; width:95px; height:24px; padding:0 18px 0 6px !important; background-position:right 6px center !important; font-size:9px; background-color:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); color:var(--text-normal); border-radius:4px; cursor:pointer; font-weight:500;">
               <option value="original"${defaultBgMode === 'original' ? ' selected' : ''}>No Cutout</option>
@@ -648,6 +662,7 @@ async function showBatchView(queue: QueueData): Promise<void> {
     const bgPicker = el.querySelector('.batch-bg-color-picker') as HTMLInputElement;
     const cropCheck = el.querySelector('.batch-crop-check') as HTMLInputElement;
     const resSelect = el.querySelector('.batch-resolution-select') as HTMLSelectElement;
+    const fmtSelect = el.querySelector('.batch-format-select') as HTMLSelectElement;
 
     const handleBgModeChange = () => {
       const mode = bgSelect?.value || 'original';
@@ -719,14 +734,19 @@ async function showBatchView(queue: QueueData): Promise<void> {
         container.style.background = 'none';
       }
 
-      // Update extension preview
+      // Update extension preview based on per-card format dropdown
       const extPreview = el.querySelector('.batch-image-ext-preview');
       if (extPreview) {
         if ((isBg || isCrop) && !isBgCol) {
           extPreview.textContent = '.png';
         } else {
-          const formatInput = document.querySelector('input[name="format"]:checked') as HTMLInputElement;
-          extPreview.textContent = `.${formatInput?.value || 'webp'}`;
+          const cardFmt = fmtSelect?.value || 'default';
+          if (cardFmt !== 'default') {
+            extPreview.textContent = `.${cardFmt}`;
+          } else {
+            const formatInput = document.querySelector('input[name="format"]:checked') as HTMLInputElement;
+            extPreview.textContent = `.${formatInput?.value || 'webp'}`;
+          }
         }
       }
     };
@@ -744,6 +764,27 @@ async function showBatchView(queue: QueueData): Promise<void> {
     if (bgPicker) bgPicker.addEventListener('input', handleCardChange);
     if (cropCheck) cropCheck.addEventListener('change', handleCardChange);
     if (resSelect) resSelect.addEventListener('change', handleCardChange);
+    if (fmtSelect) fmtSelect.addEventListener('change', () => {
+      // Update extension preview immediately
+      const extPreview = el.querySelector('.batch-image-ext-preview');
+      if (extPreview) {
+        const bgMode = bgSelect?.value || 'original';
+        const isBgOrCrop = (bgMode === 'transparent' || bgMode === 'color') || cropCheck?.checked;
+        const isBgCol = bgMode === 'color';
+        if (isBgOrCrop && !isBgCol) {
+          extPreview.textContent = '.png';
+        } else {
+          const cardFmt = fmtSelect.value || 'default';
+          if (cardFmt !== 'default') {
+            extPreview.textContent = `.${cardFmt}`;
+          } else {
+            const formatInput = document.querySelector('input[name="format"]:checked') as HTMLInputElement;
+            extPreview.textContent = `.${formatInput?.value || 'webp'}`;
+          }
+        }
+      }
+      saveOptions();
+    });
 
     // Initialize color picker visibility
     if (bgSelect?.value === 'color') {
@@ -872,12 +913,25 @@ function getProcessingOptions(): ProcessingOptions {
     }
   });
 
+  // Collect individual custom formats
+  const customFormats: Record<string, string> = {};
+  const fmtSelects = batchImageList.querySelectorAll('.batch-format-select');
+  fmtSelects.forEach((select) => {
+    const htmlSelect = select as HTMLSelectElement;
+    const id = htmlSelect.dataset.id;
+    const val = htmlSelect.value;
+    if (id && val && val !== 'default') {
+      customFormats[id] = val;
+    }
+  });
+
   logger.info('[popup] getProcessingOptions collected:', {
     bgRemoveKeys: Object.keys(bgRemove),
     bgRemoveValues: Object.values(bgRemove),
     cropKeys: Object.keys(crop),
     cropValues: Object.values(crop),
     customResolutions,
+    customFormats,
     bgColorEnable,
     bgColorValue
   });
@@ -919,6 +973,7 @@ function getProcessingOptions(): ProcessingOptions {
     bgRemove,
     crop,
     customResolutions,
+    customFormats,
     bgColorEnable,
     bgColorValue,
     customMetadata,
@@ -951,12 +1006,29 @@ function updateExtensionPreviews(): void {
   const formatInput = document.querySelector(
     'input[name="format"]:checked'
   ) as HTMLInputElement;
-  const val = formatInput?.value || 'webp';
-  const ext = val === 'def' ? ' (Default)' : `.${val}`;
+  const globalVal = formatInput?.value || 'webp';
+  const globalExt = globalVal === 'def' ? ' (Default)' : `.${globalVal}`;
 
-  const previews = batchImageList.querySelectorAll('.batch-image-ext-preview');
-  previews.forEach((p) => {
-    p.textContent = ext;
+  const cards = batchImageList.querySelectorAll('.batch-image-item');
+  cards.forEach((card) => {
+    const extPreview = card.querySelector('.batch-image-ext-preview');
+    const fmtSelect = card.querySelector('.batch-format-select') as HTMLSelectElement;
+    if (!extPreview) return;
+
+    // Check if bg remove/crop is active (which forces png)
+    const bgSelect = card.querySelector('.batch-bg-select') as HTMLSelectElement;
+    const cropCheck = card.querySelector('.batch-crop-check') as HTMLInputElement;
+    const bgMode = bgSelect?.value || 'original';
+    const isBgOrCrop = (bgMode === 'transparent' || bgMode === 'color') || cropCheck?.checked;
+    const isBgCol = bgMode === 'color';
+
+    if (isBgOrCrop && !isBgCol) {
+      extPreview.textContent = '.png';
+    } else if (fmtSelect && fmtSelect.value !== 'default') {
+      extPreview.textContent = `.${fmtSelect.value}`;
+    } else {
+      extPreview.textContent = globalExt;
+    }
   });
 }
 

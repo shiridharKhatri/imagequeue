@@ -114,6 +114,8 @@ export interface ProcessingOptions {
   crop?: Record<string, boolean>;
   /** Optional custom resolution mapping item.id -> string */
   customResolutions?: Record<string, string>;
+  /** Optional custom format mapping item.id -> format string (e.g. 'webp', 'jpg', 'png') */
+  customFormats?: Record<string, string>;
   /** Optional custom background color enable mapping item.id -> boolean */
   bgColorEnable?: Record<string, boolean>;
   /** Optional custom background color hex value mapping item.id -> string */
