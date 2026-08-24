@@ -1108,8 +1108,19 @@ async function processImageViaApi(
     throw new Error(`Python API Error (${response.status}): ${errText}`);
   }
 
-  const outBlob = await response.blob();
+  let outBlob = await response.blob();
   logger.info(`[offscreen] processImageViaApi success. Blob size: ${outBlob.size}`);
+
+  // Client-side format correction fallback (if remote API returns PNG but we want WebP/AVIF/etc.)
+  const expectedMime = formatToMime(options.format);
+  if (outBlob.type !== expectedMime) {
+    logger.info(`[offscreen] processImageViaApi: Format mismatch (got ${outBlob.type}, expected ${expectedMime}). Performing local conversion fallback.`);
+    outBlob = await processImage(outBlob, {
+      ...options,
+      imageProcessingMode: 'local', // Force local JS canvas conversion
+    });
+  }
+
   return outBlob;
 }
 
