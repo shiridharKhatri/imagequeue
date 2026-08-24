@@ -53,6 +53,8 @@ const formatGroup = $<HTMLElement>('format-group');
 const qualityInput = $<HTMLInputElement>('quality');
 const qualityValue = $<HTMLElement>('quality-value');
 const resolutionSelect = $<HTMLSelectElement>('resolution');
+const globalCustomResContainer = $<HTMLElement>('global-custom-res-container');
+const globalCustomResInput = $<HTMLInputElement>('global-custom-res-input');
 const filenamePrefixInput = $<HTMLInputElement>('filename-prefix');
 const authorNameInput = $<HTMLInputElement>('author-name');
 const filenamePreview = $<HTMLElement>('filename-preview');
@@ -473,7 +475,15 @@ async function showBatchView(queue: QueueData): Promise<void> {
       targetSizeInput.value = '';
     }
     if (saved.resolution) {
-      resolutionSelect.value = saved.resolution;
+      const optionExists = Array.from(resolutionSelect.options).some(opt => opt.value === saved.resolution);
+      if (optionExists) {
+        resolutionSelect.value = saved.resolution;
+        globalCustomResContainer.style.display = 'none';
+      } else {
+        resolutionSelect.value = 'custom';
+        globalCustomResInput.value = saved.resolution;
+        globalCustomResContainer.style.display = 'flex';
+      }
     }
     if (saved.filenamePrefix) {
       filenamePrefixInput.value = saved.filenamePrefix;
@@ -506,6 +516,7 @@ async function showBatchView(queue: QueueData): Promise<void> {
     isBatchPersistenceInitialized = true;
     const leftControls = [
       resolutionSelect,
+      globalCustomResInput,
       filenamePrefixInput,
       qualityInput,
       targetSizeInput,
@@ -573,6 +584,9 @@ async function showBatchView(queue: QueueData): Promise<void> {
     if (saved && saved.customResolutions && saved.customResolutions[item.id]) {
       defaultRes = saved.customResolutions[item.id];
     }
+    const standardResolutions = ['default', '0', '872x560', '340x340', '500x500', '1200x628', '1200x1200'];
+    const isCustomRes = defaultRes !== 'default' && !standardResolutions.includes(defaultRes);
+    const customResValue = isCustomRes ? defaultRes : '';
 
     let defaultBgMode = isProductImg ? 'transparent' : 'original';
     if (saved) {
@@ -628,7 +642,9 @@ async function showBatchView(queue: QueueData): Promise<void> {
               <option value="500x500"${defaultRes === '500x500' ? ' selected' : ''}>500x500 (Custom)</option>
               <option value="1200x628"${defaultRes === '1200x628' ? ' selected' : ''}>1200x628 (WP Wide)</option>
               <option value="1200x1200"${defaultRes === '1200x1200' ? ' selected' : ''}>1200x1200 (Square)</option>
+              <option value="custom"${isCustomRes ? ' selected' : ''}>Custom...</option>
             </select>
+            <input type="text" class="input batch-custom-res-input" data-id="${item.id}" value="${customResValue}" placeholder="600x400" style="display:${isCustomRes ? 'block' : 'none'}; width:70px; height:24px; font-size:9px; background-color:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); color:var(--text-normal); border-radius:4px; padding:0 6px;" />
             <select class="select batch-format-select" data-id="${item.id}" style="flex-shrink:0; width:70px; height:24px; padding:0 18px 0 6px !important; background-position:right 6px center !important; font-size:9px; background-color:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); color:var(--text-normal); border-radius:4px; cursor:pointer; font-weight:500;">
               <option value="default"${defaultFmt === 'default' ? ' selected' : ''}>Global</option>
               <option value="webp"${defaultFmt === 'webp' ? ' selected' : ''}>WebP</option>
@@ -761,10 +777,23 @@ async function showBatchView(queue: QueueData): Promise<void> {
       handleBgModeChange();
       saveOptions();
     });
+    const customResInput = el.querySelector('.batch-custom-res-input') as HTMLInputElement;
+
     if (bgPicker) bgPicker.addEventListener('change', handleCardChange);
     if (bgPicker) bgPicker.addEventListener('input', handleCardChange);
     if (cropCheck) cropCheck.addEventListener('change', handleCardChange);
-    if (resSelect) resSelect.addEventListener('change', handleCardChange);
+    if (resSelect) resSelect.addEventListener('change', () => {
+      const isCustom = resSelect.value === 'custom';
+      if (customResInput) {
+        customResInput.style.display = isCustom ? 'block' : 'none';
+        if (isCustom) customResInput.focus();
+      }
+      handleCardChange();
+    });
+    if (customResInput) {
+      customResInput.addEventListener('input', handleCardChange);
+      customResInput.addEventListener('change', handleCardChange);
+    }
     if (fmtSelect) fmtSelect.addEventListener('change', () => {
       // Update extension preview immediately
       const extPreview = el.querySelector('.batch-image-ext-preview');
@@ -917,7 +946,16 @@ function getProcessingOptions(): ProcessingOptions {
     const id = htmlSelect.dataset.id;
     const val = htmlSelect.value;
     if (id && val && val !== 'default') {
-      customResolutions[id] = val;
+      if (val === 'custom') {
+        const cardEl = htmlSelect.closest('.batch-image-item');
+        const customInput = cardEl?.querySelector('.batch-custom-res-input') as HTMLInputElement;
+        const customVal = customInput?.value.trim() || '';
+        if (customVal) {
+          customResolutions[id] = customVal;
+        }
+      } else {
+        customResolutions[id] = val;
+      }
     }
   });
 
@@ -975,7 +1013,7 @@ function getProcessingOptions(): ProcessingOptions {
     format: (formatInput?.value as ImageFormat) || 'webp',
     quality: parseInt(qualityInput.value) || 90,
     targetSizeKb: parseInt(targetSizeInput.value) || undefined,
-    resolution: resolutionSelect.value || '0',
+    resolution: resolutionSelect.value === 'custom' ? (globalCustomResInput.value.trim() || '0') : (resolutionSelect.value || '0'),
     filenamePrefix: filenamePrefixInput.value.trim() || 'image',
     customFilenames,
     bgRemove,
@@ -1840,7 +1878,17 @@ filenamePrefixInput.addEventListener('input', () => {
   updateIndividualNames();
   updateFilenamePreview();
 });
-resolutionSelect.addEventListener('change', updateFilenamePreview);
+resolutionSelect.addEventListener('change', () => {
+  const isCustom = resolutionSelect.value === 'custom';
+  globalCustomResContainer.style.display = isCustom ? 'flex' : 'none';
+  if (isCustom) {
+    globalCustomResInput.focus();
+  }
+  updateFilenamePreview();
+});
+globalCustomResInput.addEventListener('input', () => {
+  updateFilenamePreview();
+});
 
 // Product Name input listener to dynamically update all textareas in real-time
 productNameInput.addEventListener('input', () => {
