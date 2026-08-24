@@ -627,14 +627,13 @@ async function showBatchView(queue: QueueData): Promise<void> {
         <div class="batch-image-details" title="${escapeHtml(item.prompt)}">
           <div class="batch-image-rename-row" style="display:flex; align-items:center; gap:6px; margin-bottom:6px; width:100%;">
             <input type="text" class="input batch-image-name-input" data-id="${item.id}" value="${defaultName}" placeholder="Filename" style="flex:1; min-width:80px; height:24px; font-size:11px;" />
-            <span class="batch-image-ext-preview" style="flex-shrink:0;">${isProductImg ? '.png' : '.webp'}</span>
+            <span class="batch-image-ext-preview" style="flex-shrink:0; font-size:10px; font-weight:600; color:var(--text-muted); background:rgba(255,255,255,0.05); padding:2px 6px; border-radius:4px;">${isProductImg ? '.png' : '.webp'}</span>
             <button class="btn btn-primary batch-download-single-btn" data-id="${item.id}" title="Download this image" style="height: 24px; width: 24px; padding: 0; min-height: unset; display: flex; align-items: center; justify-content: center; flex-shrink:0; border:none; background:#3b82f6; border-radius:4px; color:#ffffff; cursor:pointer; box-shadow:0 2px 6px rgba(59,130,246,0.35);">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             </button>
-            <span class="batch-image-device-badge" style="font-size:9px; color:var(--text-muted); background:rgba(255,255,255,0.05); padding:1px 6px; border-radius:4px; border:1px solid rgba(255,255,255,0.03);">📷 Picking device...</span>
           </div>
-          <div class="batch-image-controls-row" style="display:flex; align-items:center; gap:6px; width:100%; flex-wrap:wrap;">
-            <select class="select batch-resolution-select" data-id="${item.id}" style="flex-shrink:0; width:110px; height:24px; padding:0 18px 0 6px !important; background-position:right 6px center !important; font-size:9px; background-color:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); color:var(--text-normal); border-radius:4px; cursor:pointer; font-weight:500;">
+          <div class="batch-image-controls-row" style="display:flex; align-items:center; gap:6px; width:100%; margin-bottom:6px;">
+            <select class="select batch-resolution-select" data-id="${item.id}" style="flex:1.2; min-width:90px; height:24px; padding:0 18px 0 6px !important; background-position:right 6px center !important; font-size:9px; background-color:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); color:var(--text-normal); border-radius:4px; cursor:pointer; font-weight:500;">
               <option value="default"${defaultRes === 'default' ? ' selected' : ''}>Global Size</option>
               <option value="0"${defaultRes === '0' ? ' selected' : ''}>Original</option>
               <option value="872x560"${defaultRes === '872x560' ? ' selected' : ''}>872x560 (Blog)</option>
@@ -644,8 +643,7 @@ async function showBatchView(queue: QueueData): Promise<void> {
               <option value="1200x1200"${defaultRes === '1200x1200' ? ' selected' : ''}>1200x1200 (Square)</option>
               <option value="custom"${isCustomRes ? ' selected' : ''}>Custom...</option>
             </select>
-            <input type="text" class="input batch-custom-res-input" data-id="${item.id}" value="${customResValue}" placeholder="600x400" style="display:${isCustomRes ? 'block' : 'none'}; width:70px; height:24px; font-size:9px; background-color:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); color:var(--text-normal); border-radius:4px; padding:0 6px;" />
-            <select class="select batch-format-select" data-id="${item.id}" style="flex-shrink:0; width:70px; height:24px; padding:0 18px 0 6px !important; background-position:right 6px center !important; font-size:9px; background-color:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); color:var(--text-normal); border-radius:4px; cursor:pointer; font-weight:500;">
+            <select class="select batch-format-select" data-id="${item.id}" style="flex:0.8; max-width:75px; height:24px; padding:0 18px 0 6px !important; background-position:right 6px center !important; font-size:9px; background-color:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); color:var(--text-normal); border-radius:4px; cursor:pointer; font-weight:500;">
               <option value="default"${defaultFmt === 'default' ? ' selected' : ''}>Global</option>
               <option value="webp"${defaultFmt === 'webp' ? ' selected' : ''}>WebP</option>
               <option value="jpg"${defaultFmt === 'jpg' ? ' selected' : ''}>JPEG</option>
@@ -653,16 +651,20 @@ async function showBatchView(queue: QueueData): Promise<void> {
               <option value="avif"${defaultFmt === 'avif' ? ' selected' : ''}>AVIF</option>
               <option value="tiff"${defaultFmt === 'tiff' ? ' selected' : ''}>TIFF</option>
             </select>
-            <select class="select batch-bg-select" data-id="${item.id}" style="flex-shrink:0; width:95px; height:24px; padding:0 18px 0 6px !important; background-position:right 6px center !important; font-size:9px; background-color:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); color:var(--text-normal); border-radius:4px; cursor:pointer; font-weight:500;">
+            <select class="select batch-bg-select" data-id="${item.id}" style="flex:1; max-width:95px; height:24px; padding:0 18px 0 6px !important; background-position:right 6px center !important; font-size:9px; background-color:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); color:var(--text-normal); border-radius:4px; cursor:pointer; font-weight:500;">
               <option value="original"${defaultBgMode === 'original' ? ' selected' : ''}>No Cutout</option>
               <option value="transparent"${defaultBgMode === 'transparent' ? ' selected' : ''}>Transparent</option>
               <option value="color"${defaultBgMode === 'color' ? ' selected' : ''}>Solid Color</option>
             </select>
-            <input type="color" class="batch-bg-color-picker" data-id="${item.id}" value="${defaultBgColor}" style="${defaultBgMode === 'color' ? 'display:block;' : 'display:none;'} width:22px; height:22px; border:1px solid rgba(255,255,255,0.15); padding:0; background:transparent; cursor:pointer; border-radius:4px; flex-shrink:0;" />
-            <label class="batch-crop-toggle" title="Auto-crop transparent borders" style="display:flex; align-items:center; gap:3px; font-size:9px; color:var(--text-muted); cursor:pointer; flex-shrink:0; padding:2px 6px; border-radius:4px; border:1px solid rgba(255,255,255,0.08); background:${defaultCrop ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.03)'};">
+          </div>
+          <div class="batch-image-subcontrols-row" style="display:flex; align-items:center; gap:6px; width:100%; flex-wrap:wrap;">
+            <input type="text" class="input batch-custom-res-input" data-id="${item.id}" value="${customResValue}" placeholder="600x400" style="display:${isCustomRes ? 'block' : 'none'}; width:75px; height:24px; font-size:9px; background-color:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); color:var(--text-normal); border-radius:4px; padding:0 6px; flex-shrink:0;" />
+            <input type="color" class="batch-bg-color-picker" data-id="${item.id}" value="${defaultBgColor}" style="${defaultBgMode === 'color' ? 'display:block;' : 'display:none;'} width:24px; height:24px; border:1px solid rgba(255,255,255,0.15); padding:0; background:transparent; cursor:pointer; border-radius:4px; flex-shrink:0;" />
+            <label class="batch-crop-toggle" title="Auto-crop transparent borders" style="display:flex; align-items:center; gap:3px; font-size:9px; color:var(--text-muted); cursor:pointer; flex-shrink:0; padding:2px 6px; height:24px; border-radius:4px; border:1px solid rgba(255,255,255,0.08); background:${defaultCrop ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.03)'}; box-sizing:border-box;">
               <input type="checkbox" class="batch-crop-check" data-id="${item.id}" ${defaultCrop ? 'checked' : ''} style="width:12px; height:12px; accent-color:#3b82f6; cursor:pointer;" />
               <span>Crop✂️</span>
             </label>
+            <span class="batch-image-device-badge" style="font-size:9px; color:var(--text-muted); background:rgba(255,255,255,0.04); padding:3px 6px; border-radius:4px; border:1px solid rgba(255,255,255,0.03); max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="Picking device...">📷 Picking device...</span>
           </div>
         </div>
       </div>
