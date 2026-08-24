@@ -547,7 +547,7 @@ async function downloadLatestZip(options?: ProcessingOptions): Promise<{ success
       await chrome.downloads.download({
         url,
         filename: `${queue.articleName || 'image'}-images.zip`,
-        saveAs: true,
+        saveAs: false,
       });
       return { success: true };
     } catch (err) {
@@ -583,7 +583,7 @@ async function downloadLatestZip(options?: ProcessingOptions): Promise<{ success
       await chrome.downloads.download({
         url: response.blobUrl,
         filename: response.filename || `${options?.filenamePrefix || queue.articleName || 'image'}-images.zip`,
-        saveAs: true,
+        saveAs: false,
       });
       return { success: true };
     }
