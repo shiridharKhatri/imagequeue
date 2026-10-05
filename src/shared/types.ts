@@ -191,6 +191,8 @@ export interface ExtensionSettings {
   defaultFilenamePrefix: string;
   /** Automatically create ZIP when queue completes */
   autoZipOnComplete: boolean;
+  /** Automatically download ZIP on WordPress upload */
+  zipOnWPUpload: boolean;
   /** Delete temporary image blobs after ZIP download */
   deleteAfterZip: boolean;
   /** Pause queue on failed item (vs. skip) */
@@ -209,6 +211,20 @@ export interface ExtensionSettings {
   customBgRemovalUrl?: string;
   /** Image processing mode (local JS canvas vs Python FastAPI server) */
   imageProcessingMode?: 'local' | 'api';
+  /** Enable Google Drive Upload */
+  gdriveEnabled?: boolean;
+  /** Google Drive Folder ID */
+  gdriveFolderId?: string;
+  /** Google OAuth Client ID */
+  gdriveClientId?: string;
+  /** Google OAuth Client Secret */
+  gdriveClientSecret?: string;
+  /** Google OAuth Access Token */
+  gdriveAccessToken?: string;
+  /** Google OAuth Refresh Token */
+  gdriveRefreshToken?: string;
+  /** Logged-in Google email */
+  gdriveUserEmail?: string;
 }
 
 // ─── ChatGPT Detection ────────────────────────────────────────

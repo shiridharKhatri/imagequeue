@@ -25,28 +25,19 @@
       
       <nav class="sidebar-nav">
         <button class="nav-item active" data-tab="general-tab">
-          <!-- Gear icon SVG -->
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="3"></circle>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-          </svg>
+          <i class="bi bi-gear nav-icon" style="font-size: 16px;"></i>
           <span>General Settings</span>
         </button>
         <button class="nav-item" data-tab="wordpress-tab">
-          <!-- Web icon SVG -->
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="2" y1="12" x2="22" y2="12"></line>
-            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-          </svg>
+          <i class="bi bi-wordpress nav-icon" style="font-size: 16px;"></i>
           <span>WordPress Integration</span>
         </button>
+        <button class="nav-item" data-tab="gdrive-tab">
+          <i class="bi bi-google-drive nav-icon" style="font-size: 16px;"></i>
+          <span>Google Drive</span>
+        </button>
         <button class="nav-item" data-tab="diagnostics-tab">
-          <!-- Terminal icon SVG -->
-          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="4 17 10 11 4 5"></polyline>
-            <line x1="12" y1="19" x2="20" y2="19"></line>
-          </svg>
+          <i class="bi bi-terminal nav-icon" style="font-size: 16px;"></i>
           <span>Diagnostics & Logs</span>
         </button>
       </nav>
@@ -213,6 +204,16 @@
               <label for="default-author">Default Author Name</label>
               <input type="text" id="default-author" class="input" placeholder="e.g. Lycoris" />
             </div>
+            <div class="setting-toggle-row" style="margin-top: 15px;">
+              <div class="toggle-text">
+                <span class="toggle-title">Download ZIP on WordPress upload</span>
+                <span class="toggle-sub">Automatically saves a local ZIP backup when uploading completed images to WordPress</span>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="zip-on-wp-upload" />
+                <span class="slider"></span>
+              </label>
+            </div>
           </div>
         </section>
 
@@ -235,6 +236,79 @@
               <input type="text" id="custom-bg-removal-url" class="input" placeholder="e.g. https://imagetool.api.dailyworkreport.com" />
               <p class="field-help" style="font-size:11px; color:var(--text-muted); margin-top:4px;">The base URL of your local or remote Python FastAPI service (default is https://imagetool.api.dailyworkreport.com).</p>
             </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- Tab: Google Drive Settings -->
+      <div id="gdrive-tab" class="tab-content">
+        <section class="card">
+          <div class="card-header">
+            <h3 class="card-title">Google Drive Upload Integration</h3>
+            <p class="card-desc">Configure Google OAuth client credentials and directory locations for direct cloud storage updates.</p>
+          </div>
+          <div class="card-body">
+            <div class="setting-toggle-row" style="margin-bottom: 20px;">
+              <div class="toggle-text">
+                <span class="toggle-title">Enable Google Drive uploads</span>
+                <span class="toggle-sub">Enable direct upload of processed image ZIPs to Google Drive</span>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="gdrive-enabled" />
+                <span class="slider"></span>
+              </label>
+            </div>
+            
+            <div class="field">
+              <label>Authorized Redirect URI</label>
+              <div style="display:flex; gap:8px;">
+                <input type="text" id="gdrive-redirect-uri" class="input" style="background:#18181b; color:#a1a1aa;" readonly />
+                <button type="button" id="btn-copy-redirect" class="btn btn-ghost" style="padding:0 12px; height:34px; min-height:unset; font-size:11px;">Copy</button>
+              </div>
+              <span class="field-desc" style="font-size:10px; color:var(--text-muted); margin-top:4px; display:block;">
+                Whitelist this URI in your Google Cloud Console under "Authorized redirect URIs".
+              </span>
+            </div>
+
+            <div class="field">
+              <label for="gdrive-client-id">Google Client ID</label>
+              <input type="text" id="gdrive-client-id" class="input" placeholder="Enter Google OAuth Client ID..." />
+            </div>
+
+            <div class="field">
+              <label for="gdrive-client-secret">Google Client Secret</label>
+              <input type="password" id="gdrive-client-secret" class="input" placeholder="Enter Google OAuth Client Secret..." />
+            </div>
+
+            <div class="field">
+              <label for="gdrive-folder-id">Google Drive Folder ID (Optional)</label>
+              <input type="text" id="gdrive-folder-id" class="input" placeholder="Leave empty for Root folder or enter a Folder ID..." />
+            </div>
+
+            <div class="field" style="margin-top: 20px;">
+              <label>Authorization & Access Status</label>
+              <div style="display:flex; gap:8px; align-items:center; margin-bottom:12px;">
+                <button type="button" id="btn-auth-gdrive" class="btn btn-primary" style="background:#4285f4; box-shadow:0 4px 12px rgba(66, 133, 244, 0.2); border:none; cursor:pointer;">
+                  Authenticate with Google
+                </button>
+                <div id="gdrive-status-info" style="font-size:12px; color:var(--text-muted); font-weight:500;">
+                  Not authenticated
+                </div>
+              </div>
+            </div>
+
+            <div style="border-top:1px solid var(--border-color); margin-top:20px; padding-top:15px;">
+              <span class="toggle-title" style="font-size:12px; display:block; margin-bottom:8px; color:var(--text-muted);">Developer Options (Manual Token Bypass)</span>
+              <div class="field" style="margin-bottom:10px;">
+                <label for="gdrive-manual-access-token">Manual Access Token</label>
+                <input type="password" id="gdrive-manual-access-token" class="input" placeholder="Paste temporary access token from Google OAuth Playground..." />
+              </div>
+              <div class="field">
+                <label for="gdrive-manual-refresh-token">Manual Refresh Token</label>
+                <input type="password" id="gdrive-manual-refresh-token" class="input" placeholder="Paste manual refresh token..." />
+              </div>
+            </div>
+
           </div>
         </section>
       </div>

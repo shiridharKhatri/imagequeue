@@ -60,6 +60,7 @@ const authorNameInput = $<HTMLInputElement>('author-name');
 const filenamePreview = $<HTMLElement>('filename-preview');
 const btnDownloadZip = $<HTMLButtonElement>('btn-download-zip');
 const btnUploadWP = $<HTMLButtonElement>('btn-upload-wp');
+const btnUploadGDrive = $<HTMLButtonElement>('btn-upload-gdrive');
 const btnDownloadIndividual = $<HTMLButtonElement>('btn-download-individual');
 const btnNewBatch = $<HTMLButtonElement>('btn-new-batch');
 const popupProcessingModeSelect = $<HTMLSelectElement>('popup-processing-mode');
@@ -1293,6 +1294,34 @@ async function handleUploadWP(): Promise<void> {
   }
 }
 
+async function handleUploadGDrive(): Promise<void> {
+  const settings = await settingsStorage.load();
+  if (!settings.gdriveEnabled || (!settings.gdriveAccessToken && !settings.gdriveRefreshToken)) {
+    showBanner('error', 'Google Drive upload is not enabled or not authenticated in settings.');
+    return;
+  }
+
+  const completedItems = currentQueue?.items.filter(i => i.status === 'completed') || [];
+  if (completedItems.length === 0) {
+    showBanner('warning', 'No completed images to upload.');
+    return;
+  }
+
+  btnUploadGDrive.disabled = true;
+  btnUploadGDrive.innerHTML = '<div class="spinner"></div> Uploading ZIP...';
+
+  try {
+    const options = getProcessingOptions();
+    await sendToBackground(MSG.UPLOAD_GDRIVE, { options });
+  } catch (err) {
+    console.error('Google Drive Upload trigger failed:', err);
+    showBanner('error', `Google Drive Error: ${err instanceof Error ? err.message : err}`);
+    alert(`Failed to upload to Google Drive: ${err instanceof Error ? err.message : err}`);
+    btnUploadGDrive.disabled = false;
+    btnUploadGDrive.innerHTML = `<i class="bi bi-google-drive"></i> Send to Google Drive`;
+  }
+}
+
 function cleanTitle(filename: string): string {
   const name = filename.replace(/\.[a-z0-9]+$/i, '');
   return name
@@ -1380,6 +1409,23 @@ chrome.runtime.onMessage.addListener(
         btnUploadWP.innerHTML = originalHTML;
         showBanner('error', `WordPress Error: ${error}`);
         alert(`Failed to upload to WordPress: ${error}`);
+      }
+    } else if (message.type === MSG.GDRIVE_UPLOAD_PROGRESS) {
+      const { status, error } = message.payload as { status: 'uploading' | 'success' | 'error'; error?: string };
+      const originalHTML = `<i class="bi bi-google-drive"></i> Send to Google Drive`;
+      if (status === 'uploading') {
+        btnUploadGDrive.disabled = true;
+        btnUploadGDrive.innerHTML = `<div class="spinner"></div> Uploading ZIP...`;
+      } else if (status === 'success') {
+        btnUploadGDrive.disabled = false;
+        btnUploadGDrive.innerHTML = originalHTML;
+        showBanner('success', `Successfully uploaded ZIP file to Google Drive!`);
+        alert(`Successfully uploaded batch ZIP file to Google Drive!`);
+      } else if (status === 'error') {
+        btnUploadGDrive.disabled = false;
+        btnUploadGDrive.innerHTML = originalHTML;
+        showBanner('error', `Google Drive Error: ${error}`);
+        alert(`Failed to upload to Google Drive: ${error}`);
       }
     }
   }
@@ -1486,6 +1532,18 @@ async function init(): Promise<void> {
     }
   } catch (err) {
     console.error('Failed to load wp_upload_state in init:', err);
+  }
+
+  // Check for background Google Drive upload progress
+  try {
+    const res = await chrome.storage.local.get('gdrive_upload_state');
+    const state = res.gdrive_upload_state;
+    if (state && state.status === 'uploading') {
+      btnUploadGDrive.disabled = true;
+      btnUploadGDrive.innerHTML = `<div class="spinner"></div> Uploading ZIP...`;
+    }
+  } catch (err) {
+    console.error('Failed to load gdrive_upload_state in init:', err);
   }
 
   // Populate dropdown preset list first so it's always ready
@@ -1643,6 +1701,7 @@ popupProcessingModeSelect.addEventListener('change', async () => {
 
 btnDownloadZip.addEventListener('click', handleDownloadZip);
 btnUploadWP.addEventListener('click', handleUploadWP);
+btnUploadGDrive.addEventListener('click', handleUploadGDrive);
 btnDownloadIndividual.addEventListener('click', async () => {
   btnDownloadIndividual.disabled = true;
   btnDownloadIndividual.innerHTML = '<div class="spinner"></div> Processing...';

@@ -51,7 +51,12 @@ export const IMAGE_DOWNLOAD_SELECTORS = [
 export const STREAMING_INDICATORS = [
   'button[data-testid="stop-button"]',
   'button[aria-label="Stop generating"]',
+  'button[aria-label*="Stop"]',
+  'button[data-testid="fruitjuice-send-button"] svg[class*="stop"]',
   'div[class*="result-streaming"]',
+  'div[class*="result-thinking"]',
+  '[data-is-streaming="true"]',
+  '.result-streaming',
   '.typing-indicator',
 ] as const;
 
@@ -65,8 +70,14 @@ export const NEW_CHAT_SELECTORS = [
 
 /** Assistant message container for scoping image search */
 export const ASSISTANT_MESSAGE_SELECTORS = [
+  '[data-message-author-role="assistant"]',
+  'article[data-testid^="conversation-turn-"]:has([data-message-author-role="assistant"])',
+  'article[data-message-author-role="assistant"]',
   'div[data-message-author-role="assistant"]',
+  '[data-testid^="conversation-turn-"]:has([data-message-author-role="assistant"])',
+  '[data-testid="assistant-message"]',
   'div[class*="agent-turn"]',
+  '.agent-turn',
 ] as const;
 
 /**
@@ -89,28 +100,25 @@ export function queryFirst(
 }
 
 /**
- * Try a list of selectors and return ALL matching elements.
+ * Try a list of selectors and return ALL matching elements from the first selector
+ * that yields results (following the ordered fallback chain design).
  */
 export function queryAll(
   selectors: readonly string[],
   parent: Document | Element = document
 ): Element[] {
-  const results: Element[] = [];
-  const seen = new Set<Element>();
-
   for (const selector of selectors) {
     try {
       const elements = parent.querySelectorAll(selector);
-      for (const el of elements) {
-        if (!seen.has(el)) {
-          seen.add(el);
-          results.push(el);
-        }
+      if (elements.length > 0) {
+        const arr = Array.from(elements);
+        // Filter out nested duplicates: keep outermost element
+        return arr.filter((el, i) => !arr.some((other, j) => i !== j && other.contains(el)));
       }
     } catch {
       // Invalid selector, skip
     }
   }
 
-  return results;
+  return [];
 }

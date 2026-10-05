@@ -18,6 +18,7 @@ const defaultResolutionSelect = $<HTMLSelectElement>('default-resolution');
 const defaultPrefixInput = $<HTMLInputElement>('default-prefix');
 const autoZipCheckbox = $<HTMLInputElement>('auto-zip');
 const deleteAfterZipCheckbox = $<HTMLInputElement>('delete-after-zip');
+const zipOnWPUploadCheckbox = $<HTMLInputElement>('zip-on-wp-upload');
 
 // WordPress Settings
 const wpSiteUrlInput = $<HTMLInputElement>('wp-site-url');
@@ -25,6 +26,17 @@ const wpApiKeyInput = $<HTMLInputElement>('wp-api-key');
 const defaultAuthorInput = $<HTMLInputElement>('default-author');
 const customBgRemovalUrlInput = $<HTMLInputElement>('custom-bg-removal-url');
 const imageProcessingModeSelect = $<HTMLSelectElement>('image-processing-mode');
+
+// Google Drive Settings
+const gdriveEnabledCheckbox = $<HTMLInputElement>('gdrive-enabled');
+const gdriveClientIdInput = $<HTMLInputElement>('gdrive-client-id');
+const gdriveClientSecretInput = $<HTMLInputElement>('gdrive-client-secret');
+const gdriveFolderIdInput = $<HTMLInputElement>('gdrive-folder-id');
+const gdriveManualAccessTokenInput = $<HTMLInputElement>('gdrive-manual-access-token');
+const gdriveManualRefreshTokenInput = $<HTMLInputElement>('gdrive-manual-refresh-token');
+const btnAuthGDrive = $<HTMLButtonElement>('btn-auth-gdrive');
+const btnCopyRedirect = $<HTMLButtonElement>('btn-copy-redirect');
+const gdriveRedirectUriInput = $<HTMLInputElement>('gdrive-redirect-uri');
 
 // Diagnostics
 const diagTab = $<HTMLElement>('diag-tab');
@@ -54,12 +66,37 @@ async function loadSettings(): Promise<void> {
   defaultPrefixInput.value = settings.defaultFilenamePrefix;
   autoZipCheckbox.checked = settings.autoZipOnComplete;
   deleteAfterZipCheckbox.checked = settings.deleteAfterZip;
+  zipOnWPUploadCheckbox.checked = settings.zipOnWPUpload || false;
 
   wpSiteUrlInput.value = settings.wpSiteUrl || '';
   wpApiKeyInput.value = settings.wpApiKey || '';
   defaultAuthorInput.value = settings.authorName || '';
   customBgRemovalUrlInput.value = settings.customBgRemovalUrl || '';
   imageProcessingModeSelect.value = settings.imageProcessingMode || 'local';
+
+  // Google Drive
+  gdriveEnabledCheckbox.checked = settings.gdriveEnabled || false;
+  gdriveClientIdInput.value = settings.gdriveClientId || '';
+  gdriveClientSecretInput.value = settings.gdriveClientSecret || '';
+  gdriveFolderIdInput.value = settings.gdriveFolderId || '';
+  gdriveManualAccessTokenInput.value = settings.gdriveAccessToken || '';
+  gdriveManualRefreshTokenInput.value = settings.gdriveRefreshToken || '';
+  updateGDriveStatus(settings);
+}
+
+function updateGDriveStatus(settings: ExtensionSettings): void {
+  const infoEl = $('gdrive-status-info');
+  if (!infoEl) return;
+  if (settings.gdriveUserEmail) {
+    infoEl.textContent = `Connected as ${settings.gdriveUserEmail}`;
+    infoEl.style.color = '#22c55e'; // green
+  } else if (settings.gdriveAccessToken) {
+    infoEl.textContent = 'Connected (Manual Token)';
+    infoEl.style.color = '#3b82f6'; // blue
+  } else {
+    infoEl.textContent = 'Not authenticated';
+    infoEl.style.color = '#a1a1aa'; // muted
+  }
 }
 
 async function saveSettings(): Promise<void> {
@@ -77,6 +114,7 @@ async function saveSettings(): Promise<void> {
     defaultResolution: defaultResolutionSelect.value,
     defaultFilenamePrefix: defaultPrefixInput.value.trim() || 'image',
     autoZipOnComplete: autoZipCheckbox.checked,
+    zipOnWPUpload: zipOnWPUploadCheckbox.checked,
     deleteAfterZip: deleteAfterZipCheckbox.checked,
     wpEnabled: true,
     wpSiteUrl: wpSiteUrlInput.value.trim(),
@@ -84,6 +122,13 @@ async function saveSettings(): Promise<void> {
     authorName: defaultAuthorInput.value.trim(),
     customBgRemovalUrl: customBgRemovalUrlInput.value.trim(),
     imageProcessingMode: imageProcessingModeSelect.value as 'local' | 'api',
+    gdriveEnabled: gdriveEnabledCheckbox.checked,
+    gdriveClientId: gdriveClientIdInput.value.trim(),
+    gdriveClientSecret: gdriveClientSecretInput.value.trim(),
+    gdriveFolderId: gdriveFolderIdInput.value.trim(),
+    gdriveAccessToken: gdriveManualAccessTokenInput.value.trim(),
+    gdriveRefreshToken: gdriveManualRefreshTokenInput.value.trim(),
+    gdriveUserEmail: currentSettings?.gdriveUserEmail || '',
   };
 
   await sendToBackground(MSG.SAVE_SETTINGS, { settings });
@@ -185,8 +230,133 @@ navItems.forEach((btn) => {
   });
 });
 
-// ─── Init ──────────────────────────────────────────────────────
+// Initialize Redirect URI
+try {
+  gdriveRedirectUriInput.value = chrome.identity?.getRedirectURL ? chrome.identity.getRedirectURL() : `https://${chrome.runtime.id}.chromiumapp.org/`;
+} catch (e) {
+  gdriveRedirectUriInput.value = `https://${chrome.runtime.id}.chromiumapp.org/`;
+}
 
+btnCopyRedirect.addEventListener('click', () => {
+  navigator.clipboard.writeText(gdriveRedirectUriInput.value);
+  btnCopyRedirect.textContent = 'Copied!';
+  setTimeout(() => {
+    btnCopyRedirect.textContent = 'Copy';
+  }, 2000);
+});
+
+btnAuthGDrive.addEventListener('click', async () => {
+  const clientId = gdriveClientIdInput.value.trim();
+  const clientSecret = gdriveClientSecretInput.value.trim();
+  if (!clientId || !clientSecret) {
+    alert('Please enter both Google Client ID and Google Client Secret before authenticating.');
+    return;
+  }
+
+  btnAuthGDrive.disabled = true;
+  btnAuthGDrive.textContent = 'Authenticating...';
+  
+  try {
+    const redirectUri = gdriveRedirectUriInput.value;
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=https://www.googleapis.com/auth/drive.file%20https://www.googleapis.com/auth/userinfo.email&access_type=offline&prompt=consent`;
+
+    chrome.identity.launchWebAuthFlow({
+      url: authUrl,
+      interactive: true
+    }, async (responseUrl) => {
+      const err = chrome.runtime.lastError;
+      if (err || !responseUrl) {
+        alert(`Authentication failed: ${err ? err.message : 'No response URL received'}`);
+        btnAuthGDrive.disabled = false;
+        btnAuthGDrive.textContent = 'Authenticate with Google';
+        return;
+      }
+
+      try {
+        const urlObj = new URL(responseUrl);
+        const code = urlObj.searchParams.get('code');
+        if (!code) {
+          throw new Error('Authorization code not found in response URL');
+        }
+
+        // Exchange code for tokens
+        const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            code,
+            client_id: clientId,
+            client_secret: clientSecret,
+            redirect_uri: redirectUri,
+            grant_type: 'authorization_code'
+          })
+        });
+
+        if (!tokenRes.ok) {
+          const errText = await tokenRes.text();
+          throw new Error(`Token exchange failed: ${errText}`);
+        }
+
+        const tokenData = await tokenRes.json();
+        const accessToken = tokenData.access_token;
+        const refreshToken = tokenData.refresh_token;
+
+        // Fetch user email
+        const emailRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+          headers: {
+            Authorization: `Bearer ${accessToken}`
+          }
+        });
+        
+        let email = 'unknown-user';
+        if (emailRes.ok) {
+          const emailData = await emailRes.json();
+          email = emailData.email || email;
+        }
+
+        // Update inputs
+        gdriveManualAccessTokenInput.value = accessToken;
+        if (refreshToken) {
+          gdriveManualRefreshTokenInput.value = refreshToken;
+        }
+
+        // Save immediately
+        const currentSettings = await sendToBackground<ExtensionSettings>(MSG.GET_SETTINGS);
+        const settings: ExtensionSettings = {
+          ...currentSettings!,
+          gdriveEnabled: true,
+          gdriveClientId: clientId,
+          gdriveClientSecret: clientSecret,
+          gdriveFolderId: gdriveFolderIdInput.value.trim(),
+          gdriveAccessToken: accessToken,
+          gdriveRefreshToken: refreshToken || currentSettings?.gdriveRefreshToken || '',
+          gdriveUserEmail: email
+        };
+
+        await sendToBackground(MSG.SAVE_SETTINGS, { settings });
+        updateGDriveStatus(settings);
+        
+        // Check checkbox
+        gdriveEnabledCheckbox.checked = true;
+
+        alert(`Successfully authenticated as ${email}! Settings saved.`);
+      } catch (ex: any) {
+        alert(`Error during token exchange: ${ex.message}`);
+      } finally {
+        btnAuthGDrive.disabled = false;
+        btnAuthGDrive.textContent = 'Authenticate with Google';
+      }
+    });
+  } catch (err: any) {
+    alert(`Authentication initialization failed: ${err.message}`);
+    btnAuthGDrive.disabled = false;
+    btnAuthGDrive.textContent = 'Authenticate with Google';
+  }
+});
+
+// ─── Init ──────────────────────────────────────────────────────
 loadSettings();
 refreshDiagnostics();
 refreshLogs();

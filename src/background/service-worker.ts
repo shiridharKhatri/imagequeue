@@ -28,6 +28,7 @@ import {
 } from '../shared/messages';
 import type { QueueData, DiagnosticsInfo, ProcessingOptions } from '../shared/types';
 import { uploadToWordPress } from '../api/wp-uploader';
+import { refreshGoogleAccessToken, uploadZipToGoogleDrive } from '../api/gdrive-uploader';
 import {
   QUEUE_RECOVERY_ALARM,
   QUEUE_RECOVERY_INTERVAL_MIN,
@@ -38,6 +39,7 @@ import {
 const queueManager = new QueueManager();
 const chatgptProvider = new ChatGPTProvider();
 const geminiProvider = new GeminiProvider();
+let lastQueueState = 'idle';
 
 async function getActiveProvider(): Promise<ChatGPTProvider | GeminiProvider> {
   const settings = await settingsStorage.load();
@@ -192,6 +194,23 @@ geminiProvider.onExternalFailed = (itemId, error) => {
 // Broadcast queue updates to popup and update badge
 queueManager.setOnUpdate((queue: QueueData) => {
   updateExtensionBadge(queue);
+  
+  // Directly download ZIP automatically when queue transitions to completed state
+  if (queue.state === 'completed' && lastQueueState === 'running') {
+    settingsStorage.load().then((settings) => {
+      if (settings.autoZipOnComplete) {
+        logger.info('[service-worker] Queue completed. autoZipOnComplete is enabled. Triggering ZIP download...');
+        downloadLatestZip().catch((err) => {
+          logger.error('[service-worker] Auto ZIP download failed', { error: String(err) });
+        });
+      }
+    }).catch((err) => {
+      logger.error('[service-worker] Failed to load settings for autoZipOnComplete check', { error: String(err) });
+    });
+  }
+  
+  lastQueueState = queue.state;
+
   try {
     chrome.runtime.sendMessage(
       createMessage(MSG.QUEUE_STATUS_UPDATE, queue)
@@ -402,17 +421,51 @@ async function handleMessage(
       
       // Perform upload asynchronously in the background so it doesn't block the message response
       uploadBatchToWordPress(options, author)
-        .then(() => {
+        .then(async () => {
           chrome.storage.local.set({ wp_upload_state: { status: 'idle' } });
+          const totalCount = queueManager.getQueue().items.filter(i => i.status === 'completed').length;
           chrome.runtime.sendMessage({
             type: 'WP_UPLOAD_PROGRESS',
-            payload: { status: 'success', total: queueManager.getQueue().items.filter(i => i.status === 'completed').length }
+            payload: { status: 'success', total: totalCount }
           }).catch(() => {});
+
+          // Trigger automatic ZIP download if option enabled
+          const settings = await settingsStorage.load();
+          if (settings.zipOnWPUpload) {
+            logger.info('[service-worker] zipOnWPUpload is enabled. Triggering ZIP download...');
+            try {
+              await downloadLatestZip(options);
+            } catch (err) {
+              logger.error('[service-worker] Auto ZIP download on WP upload failed', { error: String(err) });
+            }
+          }
         })
         .catch((err) => {
           chrome.storage.local.set({ wp_upload_state: { status: 'idle' } });
           chrome.runtime.sendMessage({
             type: 'WP_UPLOAD_PROGRESS',
+            payload: { status: 'error', error: String(err) }
+          }).catch(() => {});
+        });
+
+      sendResponse({ success: true });
+      break;
+    }
+    case MSG.UPLOAD_GDRIVE: {
+      const { options } = message.payload as { options: ProcessingOptions };
+      
+      uploadBatchToGoogleDrive(options)
+        .then(() => {
+          chrome.storage.local.set({ gdrive_upload_state: { status: 'idle' } });
+          chrome.runtime.sendMessage({
+            type: 'GDRIVE_UPLOAD_PROGRESS',
+            payload: { status: 'success' }
+          }).catch(() => {});
+        })
+        .catch((err) => {
+          chrome.storage.local.set({ gdrive_upload_state: { status: 'idle' } });
+          chrome.runtime.sendMessage({
+            type: 'GDRIVE_UPLOAD_PROGRESS',
             payload: { status: 'error', error: String(err) }
           }).catch(() => {});
         });
@@ -546,7 +599,7 @@ async function downloadLatestZip(options?: ProcessingOptions): Promise<{ success
       const queue = queueManager.getQueue();
       await chrome.downloads.download({
         url,
-        filename: `${queue.articleName || 'image'}-images.zip`,
+        filename: `${queue.articleName || 'image'}.zip`,
         saveAs: false,
       });
       return { success: true };
@@ -582,7 +635,7 @@ async function downloadLatestZip(options?: ProcessingOptions): Promise<{ success
     if (response?.blobUrl) {
       await chrome.downloads.download({
         url: response.blobUrl,
-        filename: response.filename || `${options?.filenamePrefix || queue.articleName || 'image'}-images.zip`,
+        filename: response.filename || `${options?.filenamePrefix || queue.articleName || 'image'}.zip`,
         saveAs: false,
       });
       return { success: true };
@@ -766,6 +819,82 @@ async function uploadBatchToWordPress(options: ProcessingOptions, author: string
 
       await uploadToWordPress(settings.wpSiteUrl, settings.wpApiKey, payload);
     }
+  }
+}
+
+async function uploadBatchToGoogleDrive(options: ProcessingOptions): Promise<void> {
+  const settings = await settingsStorage.load();
+  if (!settings.gdriveEnabled) {
+    throw new Error('Google Drive upload is not enabled in settings.');
+  }
+  
+  let accessToken = settings.gdriveAccessToken;
+  const refreshToken = settings.gdriveRefreshToken;
+  const clientId = settings.gdriveClientId;
+  const clientSecret = settings.gdriveClientSecret;
+  const folderId = settings.gdriveFolderId;
+
+  if (!accessToken && !refreshToken) {
+    throw new Error('Google Drive is not authenticated.');
+  }
+
+  await chrome.storage.local.set({
+    gdrive_upload_state: {
+      status: 'uploading'
+    }
+  });
+
+  try {
+    if (refreshToken && clientId && clientSecret) {
+      try {
+        logger.info('[service-worker] Refreshing Google access token...');
+        accessToken = await refreshGoogleAccessToken(clientId, clientSecret, refreshToken);
+        await settingsStorage.save({
+          ...settings,
+          gdriveAccessToken: accessToken
+        });
+      } catch (refreshErr) {
+        logger.warn('[service-worker] Token refresh failed, using current access token', { error: String(refreshErr) });
+      }
+    }
+
+    if (!accessToken) {
+      throw new Error('No valid Google Drive access token.');
+    }
+
+    await ensureOffscreenDocument();
+
+    const queue = queueManager.getQueue();
+    const completedItems = queue.items.filter((i) => i.status === 'completed');
+    if (completedItems.length === 0) {
+      throw new Error('No completed images to upload.');
+    }
+
+    logger.info('[service-worker] Building ZIP for Google Drive upload...');
+    const response = await chrome.runtime.sendMessage({
+      type: 'OFFSCREEN_BUILD_ZIP',
+      payload: {
+        items: completedItems.map((i) => ({ id: i.id, prompt: i.prompt })),
+        options,
+      },
+    }) as { blobUrl?: string; filename?: string } | undefined;
+
+    if (!response || !response.blobUrl) {
+      throw new Error('Failed to create ZIP inside offscreen document.');
+    }
+
+    logger.info('[service-worker] Fetching ZIP blob from offscreen blobUrl...', { url: response.blobUrl });
+    const resBlob = await fetch(response.blobUrl);
+    const zipBlob = await resBlob.blob();
+
+    const filename = response.filename || `${options.filenamePrefix || queue.articleName || 'image'}.zip`;
+
+    logger.info('[service-worker] Uploading ZIP to Google Drive...', { filename });
+    const uploadResult = await uploadZipToGoogleDrive(accessToken, folderId, filename, zipBlob);
+    logger.info('[service-worker] Google Drive upload successful', { fileId: uploadResult.fileId });
+  } catch (err) {
+    logger.error('[service-worker] Google Drive batch upload failed', { error: String(err) });
+    throw err;
   }
 }
 

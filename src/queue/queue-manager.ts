@@ -463,12 +463,15 @@ export class QueueManager {
     const errorMessage = err instanceof Error ? err.message : String(err);
     const idx = this.queue.items.findIndex((i) => i.id === item.id) + 1;
 
-    const lowerError = errorMessage.toLowerCase();
+    const lowerError = errorMessage.toLowerCase().replace(/['’]/g, "'");
     const isRateLimit = lowerError.includes('limit') || 
                         lowerError.includes('quota') ||
                         lowerError.includes('rate limit') ||
                         lowerError.includes('paused until') ||
                         lowerError.includes('too many requests') ||
+                        lowerError.includes('try again later') ||
+                        lowerError.includes("can't generate any more images") ||
+                        lowerError.includes('more images on this device') ||
                         lowerError.includes('resource exhausted');
 
     if (isRateLimit) {

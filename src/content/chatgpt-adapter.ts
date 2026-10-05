@@ -183,6 +183,7 @@ export function startNewConversation(): boolean {
  */
 export function waitForImage(
   startMessageCount: number,
+  initialImages: Set<string> = new Set(),
   timeoutMs: number = MUTATION_OBSERVER_TIMEOUT_MS
 ): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -205,11 +206,8 @@ export function waitForImage(
       reject(new Error('Image generation timed out'));
     }, timeoutMs);
 
-    let lastMessageAppearTime: number | null = null;
-    let checkAttemptsAfterStop = 0;
-
     const checkForImage = (): boolean => {
-      // Check for rate/usage limit warnings immediately
+      // 1. Check for rate/usage limit warnings immediately
       const limitError = getLimitError();
       if (limitError) {
         resolved = true;
@@ -219,45 +217,79 @@ export function waitForImage(
         return true;
       }
 
-      // First, wait for a new assistant message to appear
+      const generating = isGenerating();
+
+      // 2. Primary Strategy: Check the latest assistant message
       const currentCount = getAssistantMessageCount();
-      if (currentCount <= startMessageCount) {
-        return false;
-      }
-
-      if (!lastMessageAppearTime) {
-        lastMessageAppearTime = Date.now();
-        return false;
-      }
-
-      // Grace period: allow DALL-E block to mount in background tabs
-      if (Date.now() - lastMessageAppearTime < 6000) {
-        return false;
-      }
-
-      // Check if generation is still in progress
-      if (isGenerating()) {
-        return false;
-      }
-
-      // Look for images in the last assistant message
       const lastMsg = getLastAssistantMessage();
-      if (!lastMsg) {
+
+      if (lastMsg) {
+        const imageUrl = extractBestImageUrl(lastMsg);
+        if (imageUrl && !initialImages.has(imageUrl)) {
+          logger.info('Successfully detected generated image in last assistant message', { url: imageUrl.slice(0, 80) });
+          resolved = true;
+          clearTimeout(timeout);
+          cleanup();
+          resolve(imageUrl);
+          return true;
+        }
+
+        // Check if there is an explicit error message or text refusal in the last message
+        if (!generating && isReady() && !imageUrl) {
+          const text = lastMsg.textContent?.trim() || '';
+          const normalizedText = text.toLowerCase().replace(/['’]/g, "'");
+          const isExplicitError = [
+            'content policy',
+            'safety guidelines',
+            "can't generate",
+            'cannot generate',
+            'unable to generate',
+            "i'm sorry",
+            'sorry, i cannot',
+            'try again later',
+            'please try again',
+            'more images on this device',
+            'any more images',
+            'violates',
+            'error generating',
+            'rate limit',
+            'too many requests',
+            'limit reached',
+            'usage limit',
+          ].some((errWord) => normalizedText.includes(errWord));
+
+          if ((isExplicitError || text.length > 10) && !hasPotentialDalleImage(lastMsg) && !isStillCreating(lastMsg)) {
+            resolved = true;
+            clearTimeout(timeout);
+            cleanup();
+            logger.warn('ChatGPT returned a text refusal/error instead of an image', { error: text });
+            reject(new Error(text.length > 200 ? text.slice(0, 200) + '…' : text));
+            return true;
+          }
+        }
+      }
+
+      // 3. Secondary Strategy: Page-level image diffing (find newly rendered images)
+      // When ChatGPT has finished generating and composer is ready, check if a new image appeared anywhere in the chat
+      if (!generating && isReady()) {
+        const newImageUrl = findNewlyAppearedImageUrl(initialImages);
+        if (newImageUrl) {
+          logger.info('Successfully detected newly generated image via page diff', { url: newImageUrl.slice(0, 80) });
+          resolved = true;
+          clearTimeout(timeout);
+          cleanup();
+          resolve(newImageUrl);
+          return true;
+        }
+      }
+
+      // If we haven't seen a new assistant message yet, or generation is still ongoing, keep waiting
+      if (currentCount <= startMessageCount || generating) {
         return false;
       }
 
-      const imageUrl = extractBestImageUrl(lastMsg);
-      if (imageUrl) {
-        logger.info('Successfully detected generated image', { url: imageUrl.slice(0, 80) });
-        resolved = true;
-        clearTimeout(timeout);
-        cleanup();
-        resolve(imageUrl);
-        return true;
-      }
-
-      // If ChatGPT is still generating/creating the image, or there's a potential DALL-E image mounting, keep waiting
-      if (isStillCreating(lastMsg) || hasPotentialDalleImage(lastMsg)) {
+      // If the last message is still actively creating or mounting an image, keep waiting
+      if (lastMsg && (isStillCreating(lastMsg) || hasPotentialDalleImage(lastMsg))) {
         return false;
       }
 
@@ -266,36 +298,6 @@ export function waitForImage(
         return false;
       }
 
-      // Since there's no active image loading or image element present, and we haven't found a valid URL,
-      // check if it is a known content policy, safety guidelines, or rate limit error text.
-      // If not, do NOT reject prematurely — keep waiting until the main timeout.
-      const text = lastMsg.textContent?.trim() || 'No image generated';
-      const textLower = text.toLowerCase();
-
-      const isExplicitError = [
-        'content policy',
-        'safety guidelines',
-        'cannot generate',
-        'unable to generate',
-        "i'm sorry",
-        'violates',
-        'sorry, i cannot',
-        'error generating',
-        'rate limit',
-        'too many requests'
-      ].some(errWord => textLower.includes(errWord));
-
-      if (isExplicitError) {
-        resolved = true;
-        clearTimeout(timeout);
-        cleanup();
-        logger.warn('ChatGPT returned an explicit error/policy block', { error: text });
-        reject(new Error(text.length > 200 ? text.slice(0, 200) + '…' : text));
-        return true;
-      }
-
-      // Keep waiting to see if DALL-E mounts the image element in the DOM (crucial for slow/background tabs)
-      logger.info('DOM settled with text but no image element yet. Keep waiting to see if it mounts...', { textSnippet: text.slice(0, 100) });
       return false;
     };
 
@@ -571,7 +573,7 @@ function isImageUrl(url: string): boolean {
   if (url.includes('/files/')) return true;
 
   // Common image extensions
-  const imageExtensions = ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg'];
+  const imageExtensions = ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg', '.avif'];
   const urlLower = url.toLowerCase();
   if (imageExtensions.some((ext) => urlLower.includes(ext))) return true;
 
@@ -579,6 +581,83 @@ function isImageUrl(url: string): boolean {
   if (url.startsWith('blob:')) return true;
 
   return false;
+}
+
+/**
+ * Collect all existing valid image URLs on the page.
+ */
+function getExistingPageImageUrls(): Set<string> {
+  const urls = new Set<string>();
+  const images = document.querySelectorAll('img');
+  for (const img of images) {
+    if (img instanceof HTMLImageElement) {
+      const candidates = [
+        img.src,
+        img.getAttribute('data-src'),
+        img.getAttribute('srcset'),
+        img.getAttribute('data-original-src'),
+        img.getAttribute('data-image-src'),
+      ];
+      for (const raw of candidates) {
+        if (raw) {
+          const clean = parseSrcset(raw);
+          if (clean && isImageUrl(clean)) {
+            urls.add(clean);
+          }
+        }
+      }
+    }
+  }
+
+  const downloadLinks = document.querySelectorAll('a[download]');
+  for (const link of downloadLinks) {
+    if (link instanceof HTMLAnchorElement && link.href && isImageUrl(link.href)) {
+      urls.add(link.href);
+    }
+  }
+
+  return urls;
+}
+
+/**
+ * Look for any newly rendered image on the page that was not present before generation.
+ */
+function findNewlyAppearedImageUrl(initialImages: Set<string>): string | null {
+  const allImgs = Array.from(document.querySelectorAll('img')).reverse();
+  for (const img of allImgs) {
+    if (img instanceof HTMLImageElement) {
+      const srcAttr = img.src || '';
+      if (srcAttr.includes('avatar') || srcAttr.includes('profile') || srcAttr.includes('icon')) continue;
+      if (img.closest('[class*="avatar"]') || img.closest('[class*="profile"]')) continue;
+
+      const candidates = [
+        img.src,
+        img.getAttribute('data-src'),
+        img.getAttribute('srcset'),
+        img.getAttribute('data-original-src'),
+        img.getAttribute('data-image-src'),
+      ];
+      for (const raw of candidates) {
+        if (raw) {
+          const clean = parseSrcset(raw);
+          if (clean && isImageUrl(clean) && !initialImages.has(clean)) {
+            return clean;
+          }
+        }
+      }
+    }
+  }
+
+  const downloadLinks = Array.from(document.querySelectorAll('a[download]')).reverse();
+  for (const link of downloadLinks) {
+    if (link instanceof HTMLAnchorElement && link.href) {
+      if (isImageUrl(link.href) && !initialImages.has(link.href)) {
+        return link.href;
+      }
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -621,9 +700,10 @@ export async function generateImage(
     // Small delay for React to process
     await delay(500);
 
-    // Capture message count BEFORE submitting
+    // Capture message count and existing images BEFORE submitting
     const startMessageCount = getAssistantMessageCount();
-    logger.info('Captured initial assistant message count', { startMessageCount });
+    const initialImages = getExistingPageImageUrls();
+    logger.info('Captured initial state', { startMessageCount, initialImageCount: initialImages.size });
 
     // Step 4: Submit
     logger.info('Submitting prompt');
@@ -635,7 +715,7 @@ export async function generateImage(
 
     // Step 5: Wait for the image
     logger.info('Waiting for image generation completion...');
-    const imageUrl = await waitForImage(startMessageCount, timeoutMs);
+    const imageUrl = await waitForImage(startMessageCount, initialImages, timeoutMs);
 
     return { success: true, imageUrl };
   } catch (err) {

@@ -1113,7 +1113,7 @@ async function processImageViaApi(
 
   // Client-side format correction fallback (if remote API returns PNG but we want WebP/AVIF/etc.)
   const expectedMime = formatToMime(options.format);
-  if (outBlob.type !== expectedMime) {
+  if (outBlob.type !== expectedMime) {``
     logger.info(`[offscreen] processImageViaApi: Format mismatch (got ${outBlob.type}, expected ${expectedMime}). Performing local conversion fallback.`);
     outBlob = await processImage(outBlob, {
       ...options,

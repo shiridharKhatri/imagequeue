@@ -1,3 +1,5 @@
+@import "bootstrap-icons/font/bootstrap-icons.css";
+
 :root {
   /* Colors — ChatGPT dark theme palette */
   --bg-primary: #212121;
@@ -406,6 +408,26 @@ body::-webkit-scrollbar-thumb:hover {
 
 .btn-primary:active:not(:disabled) {
   transform: translateY(0);
+}
+
+.btn-gdrive {
+  background: #ffffff;
+  color: #171717;
+  box-shadow: var(--shadow-sm), 0 0 10px rgba(255, 255, 255, 0.05);
+}
+
+.btn-gdrive:hover:not(:disabled) {
+  background: #ececec;
+  transform: translateY(-1px);
+}
+
+.btn-gdrive:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn-gdrive i {
+  color: #0f9d58; /* Google green */
+  font-size: 15px;
 }
 
 .btn-secondary {

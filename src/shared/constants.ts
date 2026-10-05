@@ -63,6 +63,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
   defaultResolution: '0',
   defaultFilenamePrefix: 'image',
   autoZipOnComplete: false,
+  zipOnWPUpload: false,
   deleteAfterZip: false,
   pauseOnFailure: true,
   newConversationPerPrompt: false,
